@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -14,47 +14,65 @@
 <div id="stage">
   <canvas id="game" width="800" height="450"></canvas>
 
-  <!-- Hauptmenü -->
+  <!-- Main menu -->
   <div id="menu" class="overlay">
     <div class="panel">
       <h1>Volley<span>-Buddy</span></h1>
-      <p class="sub">Strand-Volleyball mit Wackelpudding-Helden · Aufschlagwertung · max. 3 Berührungen</p>
+      <p class="sub">Beach volleyball with jelly bears · serve scoring · max. 3 touches</p>
       <div class="modes">
-        <button data-mode="duel"><b>1 : 1</b><small>Zwei Spieler an einer Tastatur</small></button>
-        <button data-mode="team"><b>2 : 2</b><small>Ihr zwei gemeinsam gegen 2 KI-Gegner</small></button>
-        <button data-mode="solo"><b>1 : 1 gegen KI</b><small>Du gegen den Computer</small></button>
+        <button data-mode="duel"><b>1 : 1</b><small>Two players, one keyboard</small></button>
+        <button data-mode="team"><b>2 : 2</b><small>Team up against 2 CPU opponents</small></button>
+        <button data-mode="solo"><b>1 : 1 vs CPU</b><small>You against the computer</small></button>
       </div>
       <div class="opts">
-        <label>KI-Stärke
-          <select id="level"><option value="leicht">Leicht</option><option value="mittel" selected>Mittel</option><option value="schwer">Schwer</option></select>
+        <label>CPU level
+          <select id="level"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
         </label>
-        <label>Punkteziel
+        <label>Points to win
           <select id="target"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
         </label>
       </div>
       <div class="row">
-        <button id="btnScores" class="ghost">🏆 Highscores</button>
-        <button id="btnInstall" class="ghost" hidden>⬇ Installieren</button>
+        <button id="btnScores" class="ghost">🏆 High scores</button>
+        <button id="btnInstall" class="ghost" hidden>⬇ Install</button>
       </div>
       <div class="keys">
-        <div><b>Spieler 1</b> <kbd>A</kbd><kbd>D</kbd> laufen · <kbd>W</kbd> springen · <kbd>Strg</kbd> Smash</div>
-        <div><b>Spieler 2</b> <kbd>←</kbd><kbd>→</kbd> laufen · <kbd>↑</kbd> springen · <kbd>Strg rechts</kbd> Smash</div>
-        <div class="small">Gegen KI: WASD <i>oder</i> Pfeiltasten. Alternativ zu Strg geht <kbd>Shift</kbd> (Strg+W schließt im Browser den Tab!).
-          · <kbd>P</kbd> Pause · <kbd>M</kbd> Ton · <kbd>F</kbd> Vollbild</div>
+        <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
+        <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
+        <div class="small">Every 10–20 s a power-up appears above the net – jump up and grab it, then press Ctrl to use it.
+          Vs CPU: WASD <i>or</i> arrow keys. <kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).
+          · <kbd>P</kbd> pause · <kbd>M</kbd> sound · <kbd>F</kbd> fullscreen</div>
       </div>
     </div>
   </div>
 
-  <!-- Highscores -->
+  <!-- Player names -->
+  <div id="setup" class="overlay" hidden>
+    <div class="panel small-panel">
+      <h2 id="setupTitle">Who is playing?</h2>
+      <div class="fields">
+        <label id="row1"><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
+          <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+        <label id="row2"><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
+          <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+      </div>
+      <div class="row">
+        <button id="btnStart">Start</button>
+        <button id="btnSetupBack" class="ghost">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- High scores -->
   <div id="scores" class="overlay" hidden>
     <div class="panel">
-      <h2>🏆 Highscores</h2>
-      <p class="sub">Siege gegen die KI · Punkte = Vorsprung × 100 × KI-Faktor + längster Ballwechsel × 10</p>
+      <h2>🏆 High scores</h2>
+      <p class="sub">Wins against the CPU · points = lead × 100 × level factor + longest rally × 10</p>
       <ol id="scoreList"></ol>
       <p id="duelStats" class="sub"></p>
       <div class="row">
-        <button id="btnScoresBack">Zurück</button>
-        <button id="btnScoresClear" class="ghost">Zurücksetzen</button>
+        <button id="btnScoresBack">Back</button>
+        <button id="btnScoresClear" class="ghost">Reset</button>
       </div>
     </div>
   </div>
@@ -62,26 +80,23 @@
   <!-- Pause -->
   <div id="pause" class="overlay" hidden>
     <div class="panel small-panel">
-      <h2>Pause</h2>
+      <h2>Paused</h2>
       <div class="row">
-        <button id="btnResume">Weiter</button>
-        <button id="btnQuit" class="ghost">Zum Menü</button>
+        <button id="btnResume">Resume</button>
+        <button id="btnQuit" class="ghost">Menu</button>
       </div>
     </div>
   </div>
 
-  <!-- Spielende -->
+  <!-- Match over -->
   <div id="over" class="overlay" hidden>
     <div class="panel small-panel">
       <h2 id="overTitle"></h2>
       <p id="overInfo" class="sub"></p>
-      <div id="nameBox" hidden>
-        <p class="sub">Neuer Highscore! Name eintragen:</p>
-        <input id="nameInput" maxlength="12" autocomplete="off" placeholder="Name">
-      </div>
+      <p id="overRank" class="rank"></p>
       <div class="row">
-        <button id="btnAgain">Nochmal</button>
-        <button id="btnMenu" class="ghost">Menü</button>
+        <button id="btnAgain">Play again</button>
+        <button id="btnMenu" class="ghost">Menu</button>
       </div>
     </div>
   </div>

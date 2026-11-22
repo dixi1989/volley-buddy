@@ -1,8 +1,8 @@
 {
   "name": "Volley-Buddy",
   "short_name": "Volley-Buddy",
-  "description": "Strand-Volleyball mit Wackelpudding-Figuren: 1:1, 2:2 und gegen KI",
-  "lang": "de",
+  "description": "Beach volleyball with jelly bears: 1v1, 2v2 and vs CPU, with power-ups",
+  "lang": "en",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

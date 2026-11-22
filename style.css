@@ -32,3 +32,9 @@ ol li{padding:3px 0;border-bottom:1px solid #ffffff14}
 ol li .sc{float:right;color:#ffe066;font-weight:700}
 ol li small{color:#9fc3df}
 @media (max-width:620px){.modes{grid-template-columns:1fr}}
+.fields{display:grid;gap:10px;margin:10px 0}
+.fields label{display:grid;gap:4px;text-align:left;color:#cfe5f7}
+.fields label[hidden]{display:none}
+.fields .t small{color:#9fc3df;font-size:11px}
+.fields input{width:100%;text-align:left;font-size:17px}
+.rank{margin:0 0 8px;color:#ffe066;font-weight:700;min-height:1em}

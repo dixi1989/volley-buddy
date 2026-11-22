@@ -1,6 +1,6 @@
-/* Volley-Buddy Service Worker: App-Shell offline verfügbar.
- * Bei jeder Änderung an den Dateien VERSION hochzählen. */
-const VERSION = 'vb-v5';
+/* Volley-Buddy service worker: app shell available offline.
+ * Bump VERSION whenever any file changes. */
+const VERSION = 'vb-v6';
 const SHELL = [
   './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
@@ -17,7 +17,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Netzwerk zuerst (damit Updates ankommen), Cache als Offline-Fallback
+// network first (so updates arrive), cache as offline fallback
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
