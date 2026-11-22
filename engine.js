@@ -10,7 +10,7 @@
     NET_X: 400, NET_HW: 5, NET_TOP: 255,
     BLOB_R: 30, BALL_R: 18,
     BLOB_SPEED: 5.2, JUMP_V: -13.2, BLOB_G: 0.62,
-    BALL_G: 0.30, BALL_MAXV: 16, HIT_MIN: 8.5,
+    BALL_G: 0.30, BALL_MAXV: 13, BALL_MAX_UP: 10.5, HIT_MIN: 7.5,
     MAX_TOUCHES: 3,
     SMASH_WINDOW: 14, SMASH_COOLDOWN: 80, SMASH_BOOST: 1.38,
     SERVE_DELAY: 80, POINT_DELAY: 100,
@@ -50,8 +50,8 @@
     ball.x = cx + nx * r; ball.y = cy + ny * r;
     const vn = ball.vx * nx + ball.vy * ny;
     if (vn < 0) {
-      ball.vx -= 1.85 * vn * nx;
-      ball.vy -= 1.85 * vn * ny;
+      ball.vx -= 1.6 * vn * nx;
+      ball.vy -= 1.6 * vn * ny;
     }
     // Ball liegt auf der Netzkante: leicht anstupsen, damit er nicht klebt
     if (ny < -0.7 && Math.abs(ball.vx) < 1) {
@@ -64,8 +64,9 @@
     ball.vy += C.BALL_G;
     ball.x += ball.vx; ball.y += ball.vy;
     const r = C.BALL_R;
-    if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.95; }
-    if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.95; }
+    if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; }
+    if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.85; }
+    if (ball.y < r) { ball.y = r; ball.vy = Math.abs(ball.vy) * 0.4; }   // Decke: Ball bleibt im Bild
     return collideNet(ball, rng);
   }
 
@@ -262,14 +263,15 @@
       const vn = rvx * nx + rvy * ny;
       if (vn >= 0 && b.touchCd > 0) return;
       if (vn < 0) { rvx -= 2 * vn * nx; rvy -= 2 * vn * ny; }
-      let vx = rvx * 0.92 + b.vx, vy = rvy * 0.92 + b.vy;
+      let vx = rvx * 0.88 + b.vx, vy = rvy * 0.88 + b.vy;
       let sp = Math.hypot(vx, vy);
       if (sp < C.HIT_MIN) { const k = C.HIT_MIN / Math.max(sp, 0.001); vx *= k; vy *= k; sp = C.HIT_MIN; }
       const smashed = b.smash > 0;
       if (smashed) { vx *= C.SMASH_BOOST; vy = vy * C.SMASH_BOOST + 2.5; b.smash = 0; }
       sp = Math.hypot(vx, vy);
-      const cap = smashed ? 21 : C.BALL_MAXV;
+      const cap = smashed ? 18 : C.BALL_MAXV;
       if (sp > cap) { vx *= cap / sp; vy *= cap / sp; }
+      if (vy < -C.BALL_MAX_UP) vy = -C.BALL_MAX_UP;          // nicht zu hoch hinausschießen
       ball.vx = vx; ball.vy = vy;
       ball.spin = clamp((ball.vx) * 0.04, -0.5, 0.5);
 
@@ -307,11 +309,12 @@
       // Ball bewegen
       ball.vy += C.BALL_G;
       const sp0 = Math.hypot(ball.vx, ball.vy);
-      if (sp0 > 20) { ball.vx *= 20 / sp0; ball.vy *= 20 / sp0; }
+      if (sp0 > 18) { ball.vx *= 18 / sp0; ball.vy *= 18 / sp0; }
       ball.x += ball.vx; ball.y += ball.vy;
       const r = C.BALL_R;
-      if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.95; this.emit('wall', {}); }
-      if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.95; this.emit('wall', {}); }
+      if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; this.emit('wall', {}); }
+      if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.85; this.emit('wall', {}); }
+      if (ball.y < r) { ball.y = r; ball.vy = Math.abs(ball.vy) * 0.4; this.emit('wall', {}); }
       if (collideNet(ball, this.rng)) this.emit('net', {});
       ball.spin *= 0.995;
 
@@ -321,11 +324,11 @@
           ball.y = C.GROUND - r;
           const side = ball.x < C.NET_X ? 0 : 1;
           this.endRally(1 - side, 'ground');
-          if (this.state !== 'play') { ball.vy = -Math.abs(ball.vy) * 0.45; ball.vx *= 0.6; }
+          if (this.state !== 'play') { ball.vy = -Math.abs(ball.vy) * 0.3; ball.vx *= 0.6; }
         }
       } else { // 'point': Ball darf noch ausrollen
         if (ball.y + r >= C.GROUND) {
-          ball.y = C.GROUND - r; ball.vy = -Math.abs(ball.vy) * 0.5; ball.vx *= 0.8;
+          ball.y = C.GROUND - r; ball.vy = -Math.abs(ball.vy) * 0.35; ball.vx *= 0.8;
           if (Math.abs(ball.vy) < 1.2) ball.vy = 0;
         }
         if (--this.timer <= 0) this.startServe();
