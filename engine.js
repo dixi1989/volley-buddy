@@ -158,7 +158,7 @@
         if (b.x < tx - 5) inp.right = true; else if (b.x > tx + 5) inp.left = true;
       }
 
-      if (isHitter && sim.state === 'play') {
+      if (isHitter && (sim.state === 'play' || (sim.state === 'serve' && sim.timer <= 45))) {   // CPU serves in the last 0.75 s
         const bx = (ball.x - b.x) * dir;        // > 0: ball is in front of the blob
         const by = b.y - ball.y;                // > 0: ball is above the blob
         const near = bx > -6 && bx < 56 && by > 35 && by < 205 && ball.vy > -3;
@@ -380,6 +380,10 @@
       this.updatePowerups();
 
       if (this.state === 'serve') {
+        // the hanging ball can be played right away; otherwise it is released when the timer runs out
+        const hitsBefore = this.rallyHits;
+        for (const b of this.blobs) this.collideBlob(b);
+        if (this.rallyHits > hitsBefore) { this.state = 'play'; this.say('', 0); return; }
         if (--this.timer <= 0) { this.state = 'play'; this.say('', 0); }
         return;
       }

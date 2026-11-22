@@ -309,14 +309,17 @@
       const fx = [];
       if (g.towels[tm] > 0) fx.push({ icon: 'towel', left: g.towels[tm], max: C.TOWEL_FRAMES, good: true });
       if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
+      const live = g.state === 'play';                 // timers only run while the ball is in play
       fx.forEach((f, i) => {
         const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
+        ctx.globalAlpha = live ? 1 : 0.5;
         ctx.fillStyle = f.good ? 'rgba(8,28,48,.6)' : 'rgba(90,10,10,.65)'; rr(x, y, 105, 17, 8); ctx.fill();
         Scene.drawItemIcon(ctx, f.icon, x + 11, y + 8.5, 15);
         ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, y + 6, 58, 5);
         ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#7fe3a0' : '#ffce00'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
         ctx.font = '700 10px system-ui'; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
-        ctx.fillText(Math.ceil(f.left / 60) + 's', x + 100, y + 12);
+        ctx.fillText((live ? '' : '❚❚ ') + Math.ceil(f.left / 60) + 's', x + 100, y + 12);
+        ctx.globalAlpha = 1;
       });
     }
     if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }
