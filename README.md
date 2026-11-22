@@ -1,4 +1,4 @@
-# Volley-Buddy
+# Beach Volley Buddy
 
 Beach volleyball as a PWA with gummy-bear characters (HTML/Canvas/JS, works offline).
 

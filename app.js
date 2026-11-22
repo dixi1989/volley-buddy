@@ -1,4 +1,4 @@
-/* Volley-Buddy – frontend: canvas rendering, input, menus, high scores, sound */
+/* Beach Volley Buddy – frontend: canvas rendering, input, menus, high scores, sound */
 (function () {
   'use strict';
   const { C, Sim, LEVELS } = VB;
@@ -29,7 +29,7 @@
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
-  const looks = Object.assign({ p1: { color: PALETTE[0][1], gender: 'm' }, p2: { color: PALETTE[1][1], gender: 'm' } }, store.get('vb_looks', {}));
+  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm' }, p2: { color: PALETTE[6][1], gender: 'm' } }, store.get('vb_looks', {}));
   function renderLooks() {
     ['p1', 'p2'].forEach((slot, n) => {
       const box = $('look' + (n + 1)), other = looks[slot === 'p1' ? 'p2' : 'p1'];
@@ -343,8 +343,8 @@
     bg.addColorStop(0, '#fff'); bg.addColorStop(1, '#d7dde3');
     ctx.fillStyle = bg; ctx.fillRect(-r, -r, 2 * r, 2 * r);
     ctx.rotate(rotRef.rot);
-    ctx.fillStyle = '#f2b705'; ctx.fillRect(-r, -3.5, 2 * r, 7);
-    ctx.fillStyle = '#2f80ed'; ctx.fillRect(-3.5, -r, 7, 2 * r);
+    ctx.fillStyle = '#ee1a8c'; ctx.fillRect(-r, -3.5, 2 * r, 7);
+    ctx.fillStyle = '#2bb8d0'; ctx.fillRect(-3.5, -r, 7, 2 * r);
     ctx.restore();
     const sp = ctx.createRadialGradient(ball.x - 6, ball.y - 7, 0, ball.x - 6, ball.y - 7, 9);
     sp.addColorStop(0, 'rgba(255,255,255,.85)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
@@ -358,16 +358,16 @@
   function drawHUD(g, t) {
     const names = g.teamNames || ['', ''];
     const cols = [g.blobs[0].color, g.blobs[g.blobs.length - 1].color];
-    ctx.fillStyle = 'rgba(8,28,48,.62)'; rr(300, 8, 200, 52, 12); ctx.fill();
+    ctx.fillStyle = 'rgba(26,10,61,.7)'; rr(300, 8, 200, 52, 12); ctx.fill();
     ctx.textAlign = 'center'; ctx.font = '800 32px system-ui,sans-serif';
     ctx.fillStyle = cols[0]; ctx.fillText(g.score[0], 348, 44);
     ctx.fillStyle = cols[1]; ctx.fillText(g.score[1], 452, 44);
     ctx.fillStyle = '#fff'; ctx.font = '700 18px system-ui'; ctx.fillText(':', 400, 41);
-    ctx.font = '600 10px system-ui'; ctx.fillStyle = '#b9d6ee'; ctx.fillText('to ' + g.target, 400, 55);
+    ctx.font = '600 10px system-ui'; ctx.fillStyle = '#9fe0ec'; ctx.fillText('to ' + g.target, 400, 55);
     // serve marker
     const sx = g.serving === 0 ? 318 : 482;
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, 22, 5, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#f2b705'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 5, 22); ctx.lineTo(sx + 5, 22); ctx.stroke();
+    ctx.strokeStyle = '#ee1a8c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 5, 22); ctx.lineTo(sx + 5, 22); ctx.stroke();
     // team names
     ctx.font = '700 13px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(names[0], 14, 24, 150);
     ctx.textAlign = 'right'; ctx.fillText(names[1], C.W - 14, 24, 150);
@@ -385,13 +385,13 @@
       const inv = g.inv[tm], hasHuman = g.blobs.some(b => b.team === tm && b.controller === 'human');
       for (let i = 0; i < C.PU_MAX_INV; i++) {
         const cx = tm === 0 ? 270 - i * 32 : 530 + i * 32, cy = 34, filled = i < inv.length;
-        ctx.fillStyle = 'rgba(8,28,48,.55)'; rr(cx - 14, cy - 14, 28, 28, 7); ctx.fill();
-        ctx.strokeStyle = filled ? 'rgba(255,230,120,.95)' : 'rgba(255,255,255,.2)'; ctx.lineWidth = filled ? 2 : 1; ctx.stroke();
+        ctx.fillStyle = 'rgba(26,10,61,.62)'; rr(cx - 14, cy - 14, 28, 28, 7); ctx.fill();
+        ctx.strokeStyle = filled ? 'rgba(105,203,220,.98)' : 'rgba(255,255,255,.2)'; ctx.lineWidth = filled ? 2 : 1; ctx.stroke();
         if (filled) Scene.drawItemIcon(ctx, inv[i], cx, cy + 1, 22);
       }
       if (hasHuman && inv.length) {
         ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
-        ctx.fillStyle = `rgba(255,236,120,${0.7 + 0.3 * Math.sin(t * 6)})`;
+        ctx.fillStyle = `rgba(255,120,200,${0.75 + 0.25 * Math.sin(t * 6)})`;
         ctx.fillText(g.mode === 'duel' && tm === 1 ? 'R-Ctrl' : 'Ctrl', tm === 0 ? 270 : 530, 59);
       }
       // active effects: Fluffy Towel (own half, good) and Alman Mode (slows this team down, bad)
@@ -401,10 +401,10 @@
       if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
       fx.forEach((f, i) => {
         const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
-        ctx.fillStyle = f.good ? 'rgba(8,28,48,.6)' : 'rgba(90,10,10,.65)'; rr(x, y, 105, 17, 8); ctx.fill();
+        ctx.fillStyle = f.good ? 'rgba(26,10,61,.68)' : 'rgba(110,10,70,.7)'; rr(x, y, 105, 17, 8); ctx.fill();
         Scene.drawItemIcon(ctx, f.icon, x + 11, y + 8.5, 15);
         ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, y + 6, 58, 5);
-        ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#7fe3a0' : '#ffce00'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
+        ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#69cbdc' : '#ff4fa3'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
         ctx.font = '700 10px system-ui'; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
         ctx.fillText(Math.ceil(f.left / 60) + 's', x + 100, y + 12);
       });

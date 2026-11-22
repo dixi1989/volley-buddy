@@ -1,9 +1,9 @@
-/* Volley-Buddy service worker: app shell available offline.
+/* Beach Volley Buddy service worker: app shell available offline.
  * Bump VERSION whenever any file changes. */
-const VERSION = 'vb-v12';
+const VERSION = 'vb-v13';
 const SHELL = [
   './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'app.js', 'manifest.webmanifest',
-  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
+  'icons/icon.svg', 'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', e => {

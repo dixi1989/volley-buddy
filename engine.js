@@ -1,4 +1,4 @@
-/* Volley-Buddy – game engine (no DOM, so it can be tested headless).
+/* Beach Volley Buddy – game engine (no DOM, so it can be tested headless).
  * Physics, rules (serve scoring, max. 3 touches), power-ups and AI.
  * Units: pixels and frames at 60 Hz.
  */
