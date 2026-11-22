@@ -34,101 +34,107 @@
     j.sqv += 0.14;
   }
 
-  function blobPath(ctx, b, t) {
-    const R = C.BLOB_R, j = jstate(b);
-    const sq = j.sq + sin(t * 3.4 + b.id * 1.7) * 0.014;          // ruhiges „Atmen"
-    const sy = Math.max(0.6, 1 - sq), sx = 1 + sq * 0.8;
-    const N = 36, pts = [];
+  /* Gummibärchen: Körperteile als wabbelige Ellipsen, gemeinsam gefüllt, transparent-glänzend */
+  function addPart(ctx, p, D) {
+    const N = 20, pts = [], cr = cos(p[4]), sr = sin(p[4]);
     for (let i = 0; i < N; i++) {
-      const th = (i / N) * TAU;
-      const wob = 1 + j.w * sin(3 * th + j.ph) + j.w * 0.5 * sin(2 * th - j.ph * 1.3);
-      let x = cos(th) * R * sx * wob, y = sin(th) * R * sy * wob;
-      if (y > 0) x *= 1 + 0.09 * (y / (R * sy));                  // unten etwas breiter wie ein Pudding
-      const top = (1 - y / (R * sy)) / 2;                         // 0 unten … 1 oben
-      x += j.lean * R * 0.55 * top * top;
-      pts.push([x, y]);
+      const a = (i / N) * TAU, lx = cos(a) * p[2], ly = sin(a) * p[3];
+      pts.push(D(p[0] + lx * cr - ly * sr, p[1] + lx * sr + ly * cr));
     }
-    const cx = b.x, cy = b.y + R - R * sy;
-    ctx.beginPath();
+    ctx.moveTo((pts[N - 1][0] + pts[0][0]) / 2, (pts[N - 1][1] + pts[0][1]) / 2);
     for (let i = 0; i < N; i++) {
-      const p = pts[i], q = pts[(i + 1) % N];
-      const mx = cx + (p[0] + q[0]) / 2, my = cy + (p[1] + q[1]) / 2;
-      if (i === 0) ctx.moveTo(cx + (pts[N - 1][0] + p[0]) / 2, cy + (pts[N - 1][1] + p[1]) / 2);
-      ctx.quadraticCurveTo(cx + p[0], cy + p[1], mx, my);
+      const q = pts[(i + 1) % N];
+      ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + q[0]) / 2, (pts[i][1] + q[1]) / 2);
     }
     ctx.closePath();
-    return { cx, cy, sx, sy, j };
   }
 
   function drawBlob(ctx, b, ball, t) {
-    const R = C.BLOB_R;
+    const R = C.BLOB_R, j = jstate(b);
     // Bodenschatten
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 1.05 * (1 - hgt / 650), 6.5, 0, 0, TAU); ctx.fill();
 
-    const { cx, cy, sy, j } = blobPath(ctx, b, t);
-    // Grundfarbe mit Licht von links oben
-    const g = ctx.createRadialGradient(cx - R * 0.32, cy - R * 0.42, 2, cx - R * 0.1, cy - R * 0.1, R * 1.55);
-    g.addColorStop(0, shade(b.color, 0.65));
-    g.addColorStop(0.3, shade(b.color, 0.2));
-    g.addColorStop(0.7, b.color);
-    g.addColorStop(1, shade(b.color, -0.42));
+    const sq = j.sq + sin(t * 3.4 + b.id * 1.7) * 0.014;            // ruhiges „Atmen"
+    const sy = Math.max(0.6, 1 - sq), sx = 1 + sq * 0.8;
+    const moving = Math.abs(b.vx) > 0.1, air = !b.onGround;
+    const armDy = air ? -8 : (moving ? sin(t * 12 + b.id) * 2.2 : 0);
+    const stepx = moving && !air ? sin(t * 14 + b.id) * 2.5 : 0;
+    const parts = [
+      [0, 6, 21, 23, 0], [0, -13, 16.5, 16, 0],                        // Bauch, Kopf
+      [-12.5, -26.5, 6.2, 6.2, 0], [12.5, -26.5, 6.2, 6.2, 0],         // Ohren
+      [-22.5, 4 + armDy, 6.5, 9, -0.35 + (air ? -0.5 : 0)], [22.5, 4 + armDy, 6.5, 9, 0.35 + (air ? 0.5 : 0)], // Arme
+      [-11 + stepx, 24, 8.5, 6, 0], [11 - stepx, 24, 8.5, 6, 0]        // Füße
+    ];
+    // Verformung: Stauchung (unten verankert), Neigung (oben hinterher), Wabbeln
+    const D = (x, y) => {
+      let xx = x * sx, yy = (y - R) * sy + R;
+      const top = Math.max(0, Math.min(1.1, (R - y) / (2 * R)));
+      xx += j.lean * R * 0.55 * top * top + j.w * R * 0.3 * sin(y * 0.16 + j.ph);
+      yy += j.w * R * 0.22 * sin(x * 0.16 + j.ph * 1.2);
+      return [xx, yy];
+    };
+    const build = list => { ctx.beginPath(); for (const p of list) addPart(ctx, p, D); };
+
+    ctx.save(); ctx.translate(b.x, b.y);
+    // Kontur zuerst (nur der Außenrand bleibt sichtbar), dann gemeinsame Füllung
+    build(parts);
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4.5; ctx.strokeStyle = shade(b.color, -0.55); ctx.stroke();
+    const g = ctx.createRadialGradient(-10, -14, 2, -2, -2, 50);
+    g.addColorStop(0, shade(b.color, 0.65)); g.addColorStop(0.3, shade(b.color, 0.2));
+    g.addColorStop(0.65, b.color); g.addColorStop(1, shade(b.color, -0.42));
     ctx.fillStyle = g; ctx.fill();
 
     ctx.save(); ctx.clip();
-    // Umgebungsverdunkelung unten
-    const ao = ctx.createLinearGradient(0, cy + R * 0.1, 0, cy + R * sy);
-    ao.addColorStop(0, 'rgba(0,0,0,0)'); ao.addColorStop(1, 'rgba(10,20,40,.34)');
-    ctx.fillStyle = ao; ctx.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4);
-    // Lichtdurchlässiger Kern (Gelee-Look), unten rechts warm
-    const sub = ctx.createRadialGradient(cx + R * 0.25, cy + R * 0.3, 1, cx + R * 0.25, cy + R * 0.3, R * 0.85);
-    sub.addColorStop(0, 'rgba(255,255,230,.30)'); sub.addColorStop(1, 'rgba(255,255,230,0)');
-    ctx.fillStyle = sub; ctx.fillRect(cx - R * 2, cy - R * 2, R * 4, R * 4);
-    // Randlicht unten rechts
-    ctx.lineWidth = 5;
-    const rim = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
-    rim.addColorStop(0, 'rgba(255,255,255,0)'); rim.addColorStop(0.55, 'rgba(255,255,255,0)'); rim.addColorStop(1, 'rgba(255,255,255,.5)');
-    ctx.strokeStyle = rim; ctx.stroke();
+    const ao = ctx.createLinearGradient(0, -2, 0, 32);
+    ao.addColorStop(0, 'rgba(0,0,0,0)'); ao.addColorStop(1, 'rgba(10,20,40,.36)');
+    ctx.fillStyle = ao; ctx.fillRect(-60, -60, 120, 120);
+    const sub = ctx.createRadialGradient(4, 8, 1, 4, 8, 28);               // Licht im Inneren
+    sub.addColorStop(0, 'rgba(255,255,230,.32)'); sub.addColorStop(1, 'rgba(255,255,230,0)');
+    ctx.fillStyle = sub; ctx.fillRect(-60, -60, 120, 120);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; build([[0, 9, 13, 14, 0]]); ctx.fill();            // Bauch
+    ctx.fillStyle = 'rgba(255,255,255,.22)'; build([[-12.5, -26, 3.2, 3.4, 0], [12.5, -26, 3.2, 3.4, 0]]); ctx.fill(); // Innenohren
+    ctx.fillStyle = 'rgba(255,255,255,.30)'; build([[0, -8.5, 7.5, 5.5, 0]]); ctx.fill();       // Schnauze
+    build(parts);
+    const rim = ctx.createLinearGradient(-30, -30, 30, 30);
+    rim.addColorStop(0, 'rgba(255,255,255,0)'); rim.addColorStop(0.55, 'rgba(255,255,255,0)'); rim.addColorStop(1, 'rgba(255,255,255,.55)');
+    ctx.lineWidth = 6; ctx.strokeStyle = rim; ctx.stroke();
     ctx.restore();
-
-    // Kontur
-    const ol = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
-    ol.addColorStop(0, shade(b.color, -0.6)); ol.addColorStop(1, shade(b.color, -0.35));
-    ctx.strokeStyle = ol; ctx.lineWidth = 2; ctx.stroke();
 
     // Glanzlichter
-    const hx = cx - R * 0.36 + j.lean * R * 0.25, hy = cy - R * 0.52 * sy;
-    ctx.save(); ctx.translate(hx, hy); ctx.rotate(-0.55);
-    const sp = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.46);
-    sp.addColorStop(0, 'rgba(255,255,255,.95)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = sp; ctx.beginPath(); ctx.ellipse(0, 0, R * 0.46, R * 0.24, 0, 0, TAU); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = 'rgba(255,255,255,.8)';
-    ctx.beginPath(); ctx.arc(cx - R * 0.08 + j.lean * R * 0.3, cy - R * 0.68 * sy, 2.4, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.14)';
-    ctx.beginPath(); ctx.ellipse(cx + R * 0.34, cy + R * 0.62 * sy, R * 0.28, R * 0.1, -0.2, 0, TAU); ctx.fill();
+    const gloss = (x, y, rx, ry, rot, a) => {
+      const p = D(x, y);
+      ctx.save(); ctx.translate(p[0], p[1]); ctx.rotate(rot);
+      const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+      sg.addColorStop(0, `rgba(255,255,255,${a})`); sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, TAU); ctx.fill(); ctx.restore();
+    };
+    gloss(-7, -21, 7, 3.6, -0.6, 0.9); gloss(-11, 1, 5, 9, 0.25, 0.55);
+    gloss(-14, -28.5, 2.6, 1.8, -0.5, 0.8); gloss(14, -28.5, 2.2, 1.6, 0.5, 0.5);
+    gloss(-24, -1 + armDy, 2.6, 4.2, -0.3, 0.55); gloss(-13, 22, 3.6, 2, 0, 0.5);
+    gloss(9, 21, 5, 3, 0, 0.16);
 
-    // Augen folgen dem Ball
+    // Gesicht: schwarze Knopfaugen folgen dem Ball
     const dx = ball.x - b.x, dy = ball.y - b.y, d = Math.hypot(dx, dy) || 1;
-    const look = Math.max(-1, Math.min(1, dx / 120)) * 4.5;
-    const ex0 = cx + look + j.lean * R * 0.38, ey = cy - 4 * sy - R * 0.02;
-    [-9, 9].forEach(o => {
-      ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(ex0 + o + 1, ey + 1.5, 6.6, 8.2, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(ex0 + o, ey, 6.5, 8, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#14202b';
-      const px = ex0 + o + dx / d * 2.6, py = ey + dy / d * 3.4;
-      ctx.beginPath(); ctx.arc(px, py, 3.2, 0, TAU); ctx.fill();
+    [-6.5, 6.5].forEach(o => {
+      const p = D(o, -16.5), px = p[0] + dx / d * 1.7, py = p[1] + dy / d * 1.7;
+      ctx.fillStyle = '#16202b'; ctx.beginPath(); ctx.ellipse(px, py, 3 * sx, 3.4 * sy, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px - 1, py - 1.2, 1, 0, TAU); ctx.fill();
     });
+    const np = D(0, -11.3);
+    ctx.fillStyle = shade(b.color, -0.7); ctx.beginPath(); ctx.ellipse(np[0], np[1], 3, 2, 0, 0, TAU); ctx.fill();
+    const m0 = D(-3.2, -6.6), m1 = D(0, -4.2), m2 = D(3.2, -6.6);
+    ctx.strokeStyle = shade(b.color, -0.65); ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(m0[0], m0[1]); ctx.quadraticCurveTo(m1[0], m1[1], m2[0], m2[1]); ctx.stroke();
 
     if (b.smash > 0) {
-      ctx.save();
       ctx.shadowColor = '#ffe066'; ctx.shadowBlur = 16;
       ctx.strokeStyle = `rgba(255,236,90,${0.4 + 0.6 * b.smash / C.SMASH_WINDOW})`; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(cx, b.y, R + 7, 0, TAU); ctx.stroke();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(0, 0, R + 8, 0, TAU); ctx.stroke();
     }
+    ctx.restore();
+
     // Beschriftung + Smash-Balken
     ctx.font = '700 11px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.55)';
     ctx.fillText(b.label, b.x, b.y - R - 14);
@@ -138,10 +144,11 @@
   }
 
   /* ------------------------------------------------------ Hintergrund */
-  function drawPalm(ctx, x, flip, t, seed) {
-    const base = [x, C.GROUND + 8], top = [x + flip * 34, 250], ctl = [x - flip * 6, 330];
-    const at = u => [(1 - u) * (1 - u) * base[0] + 2 * (1 - u) * u * ctl[0] + u * u * top[0],
-                     (1 - u) * (1 - u) * base[1] + 2 * (1 - u) * u * ctl[1] + u * u * top[1]];
+  /* Palme in lokalen Koordinaten: Fuß bei (0,0), Krone bei (34,-158); s skaliert, flip spiegelt */
+  function drawPalm(ctx, x, by, s, flip, t, seed) {
+    ctx.save(); ctx.translate(x, by); ctx.scale(flip * s, s);
+    const top = [34, -158], ctl = [-6, -78];
+    const at = u => [2 * (1 - u) * u * ctl[0] + u * u * top[0], 2 * (1 - u) * u * ctl[1] + u * u * top[1]];
     ctx.lineCap = 'round';
     for (let i = 0; i < 14; i++) {
       const p = at(i / 14), q = at((i + 1) / 14);
@@ -163,6 +170,7 @@
     }
     ctx.fillStyle = '#5b3a1a';
     ctx.beginPath(); ctx.arc(top[0] - 5, top[1] + 8, 6, 0, TAU); ctx.arc(top[0] + 6, top[1] + 9, 6, 0, TAU); ctx.fill();
+    ctx.restore();
   }
 
   function gull(ctx, x, y, t, ph) {
@@ -300,8 +308,12 @@
     ctx.fillStyle = 'rgba(0,0,0,.10)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
 
     // Palmen an den Rändern (schwingen im Wind)
-    drawPalm(ctx, 22, 1, t, 0.4);
-    drawPalm(ctx, W - 22, -1, t, 2.3);
+    // (kleine Palmen am Ufer, damit der Strand dicht bewachsen wirkt – hinten klein, vorn groß)
+    drawPalm(ctx, 300, 386, 0.3, 1, t, 5.1); drawPalm(ctx, 520, 386, 0.32, -1, t, 3.7);
+    drawPalm(ctx, 170, 390, 0.5, 1, t, 1.6); drawPalm(ctx, 640, 390, 0.48, -1, t, 4.4);
+    drawPalm(ctx, 92, 398, 0.72, -1, t, 0.9); drawPalm(ctx, 712, 398, 0.7, 1, t, 2.9);
+    drawPalm(ctx, 22, C.GROUND + 8, 1, 1, t, 0.4);
+    drawPalm(ctx, W - 22, C.GROUND + 8, 1, -1, t, 2.3);
 
     // Netzpfosten
     ctx.fillStyle = 'rgba(60,40,10,.22)'; ctx.beginPath(); ctx.ellipse(C.NET_X, C.GROUND + 6, 19, 4.5, 0, 0, TAU); ctx.fill();

@@ -1,6 +1,6 @@
 /* Volley-Buddy Service Worker: App-Shell offline verfügbar.
  * Bei jeder Änderung an den Dateien VERSION hochzählen. */
-const VERSION = 'vb-v2';
+const VERSION = 'vb-v3';
 const SHELL = [
   './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
