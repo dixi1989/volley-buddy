@@ -9,7 +9,7 @@
     W: 800, H: 450, GROUND: 400,
     NET_X: 400, NET_HW: 5, NET_TOP: 255,
     BLOB_R: 30, BALL_R: 18,
-    BLOB_SPEED: 5.2, JUMP_V: -13.2, BLOB_G: 0.62,
+    BLOB_SPEED: 5.2, JUMP_V: -15, BLOB_G: 0.62,
     BALL_G: 0.30, BALL_MAXV: 13, BALL_MAX_UP: 10.5, HIT_MIN: 7.5,
     MAX_TOUCHES: 3,
     SMASH_WINDOW: 14, SMASH_COOLDOWN: 80, SMASH_BOOST: 1.38,
@@ -140,7 +140,7 @@
       if (isHitter && sim.state === 'play') {
         const bx = (ball.x - b.x) * dir;        // >0: Ball liegt vor dem Blob
         const by = b.y - ball.y;                // >0: Ball über dem Blob
-        const near = bx > -6 && bx < 56 && by > 35 && by < 175 && ball.vy > -3;
+        const near = bx > -6 && bx < 56 && by > 35 && by < 205 && ball.vy > -3;
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
         if (b.smashCd === 0 && Math.hypot(ball.x - b.x, ball.y - b.y) < 110 && !b.onGround
             && rng() < p.smash * 0.25) inp.special = true;
@@ -186,7 +186,7 @@
 
     startServe() {
       const b = this.ball;
-      b.x = this.serving === 0 ? 200 : 600; b.y = 150; b.vx = 0; b.vy = 0;
+      b.x = this.serving === 0 ? 200 : 600; b.y = 190; b.vx = 0; b.vy = 0;
       this.touches = [0, 0]; this.lastTouchTeam = -1; this.rallyHits = 0;
       this.blobs.forEach(o => o.reset());
       this.hit0 = this.hit1 = null;
