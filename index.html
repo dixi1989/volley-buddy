@@ -34,6 +34,7 @@
       </div>
       <div class="row">
         <button id="btnScores" class="ghost">🏆 High scores</button>
+        <button id="btnPowerups" class="ghost">⚡ Power-ups</button>
         <button id="btnInstall" class="ghost" hidden>⬇ Install</button>
       </div>
       <div class="keys">
@@ -80,6 +81,16 @@
         <button id="btnScoresBack">Back</button>
         <button id="btnScoresClear" class="ghost">Reset</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Power-up overview -->
+  <div id="powerups" class="overlay" hidden>
+    <div class="panel">
+      <h2>⚡ Power-ups</h2>
+      <p class="sub">Every 30 s each player gets one falling from the sky – catch it (max. 3 stored), then press Ctrl to use it.</p>
+      <div id="puList" class="pulist"></div>
+      <div class="row"><button id="btnPowerupsBack">Back</button></div>
     </div>
   </div>
 

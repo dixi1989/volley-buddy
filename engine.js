@@ -18,7 +18,7 @@
     PU_INTERVAL: 1800,                // every 30 s one power-up per player falls from the sky
     PU_FALL: 2.6, PU_R: 18,           // fall speed px/frame (~3 s from top to below the ground), pickup radius
     PU_MAX_INV: 3,
-    TOWEL_FRAMES: 900, TOWEL_H: 5,    // 15 s
+    TOWEL_FRAMES: 1500, TOWEL_H: 5,   // 25 s
     ALMAN_FRAMES: 600, ALMAN_MULT: 0.8, // 10 s, speed and jump height at 80 %
     AURA_FRAMES: 600, AURA_MULT: 1.3    // 10 s, bear hit box 30 % larger
   };

@@ -56,6 +56,7 @@
     $('menu').hidden = p !== 'menu';
     $('setup').hidden = p !== 'setup';
     $('scores').hidden = p !== 'scores';
+    $('powerups').hidden = p !== 'powerups';
     $('pause').hidden = p !== 'pause';
     $('over').hidden = p !== 'over';
   }
@@ -79,35 +80,11 @@
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
-  /* Alman Mode jingle: first line of the German anthem ("Einigkeit und Recht und Freiheit", Haydn) in a cheap-organ sound,
-     slightly out of tune and with a sagging last note. */
-  function anthem() {
-    if (settings.muted) return;
-    const ac2 = audio(); if (!ac2) return;
-    // [semitones above C4 (G major: D4 = 2, G4 = 7 ...), beats]   Ei - nig - keit und Recht und Frei - heit
-    const song = [[2, .5], [7, 1.5], [9, .5], [11, 1], [9, 1], [12, 1], [11, 1], [9, 2.5]];
-    const beat = 0.27;
-    let t = ac2.currentTime + 0.02;
-    song.forEach(([n, beats], i) => {
-      const d = beats * beat, f = 261.63 * Math.pow(2, n / 12), last = i === song.length - 1;
-      const g = ac2.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.04, t + 0.02);
-      g.gain.setValueAtTime(0.04, t + d * 0.8);
-      g.gain.linearRampToValueAtTime(0.0001, t + d);
-      g.connect(ac2.destination);
-      [['sawtooth', 0], ['square', 7]].forEach(([type, extra]) => {
-        const o = ac2.createOscillator(); o.type = type; o.frequency.value = f;
-        o.detune.setValueAtTime((Math.random() - 0.5) * 50 + extra, t);          // up to +-25 cents off
-        if (last) o.detune.linearRampToValueAtTime(-260, t + d);                   // the final note sags
-        o.connect(g); o.start(t); o.stop(t + d + 0.05);
-      });
-      t += d;
-    });
-  }
-
-  /* Aura+10 jingle: a short four-on-the-floor techno beat (128 BPM, 4 beats): kick, off-beat hi-hat, acid bass. */
-  function techno() {
+  /* Short techno loop at 128 BPM: four-on-the-floor kick, off-beat hi-hat, acid bass stabs.
+     Aura+10 uses the plain beat; Alman Mode lays the first line of the German anthem ("Einigkeit und Recht und Freiheit",
+     Haydn, G major) on top as a slightly off-key lead synth. */
+  const ANTHEM = [[2, .5], [7, 1.5], [9, .5], [11, 1], [9, 1], [12, 1], [11, 1], [9, 2.5]];   // [semitones above C4, quarter-beats]
+  function techno(melody) {
     if (settings.muted) return;
     const a = audio(); if (!a) return;
     const t0 = a.currentTime + 0.02, beat = 60 / 128;
@@ -116,25 +93,45 @@
       if (!noiseBuf) { noiseBuf = a.createBuffer(1, Math.floor(a.sampleRate * 0.1), a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
       return noiseBuf;
     };
-    for (let i = 0; i < 4; i++) {
+    let total = 4;
+    if (melody) total = Math.ceil(melody.reduce((s, m) => s + m[1], 0) * 0.5);
+    for (let i = 0; i < total; i++) {
       const t = t0 + i * beat;
       // kick
       const k = a.createOscillator(), kg = a.createGain();
       k.type = 'sine'; k.frequency.setValueAtTime(160, t); k.frequency.exponentialRampToValueAtTime(42, t + 0.14);
-      kg.gain.setValueAtTime(0.22, t); kg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      kg.gain.setValueAtTime(0.2, t); kg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
       k.connect(kg); kg.connect(a.destination); k.start(t); k.stop(t + 0.25);
       // open hi-hat on the off-beat
       const th = t + beat / 2, h = a.createBufferSource(), hf = a.createBiquadFilter(), hg = a.createGain();
       h.buffer = noise(); hf.type = 'highpass'; hf.frequency.value = 7000;
-      hg.gain.setValueAtTime(0.07, th); hg.gain.exponentialRampToValueAtTime(0.001, th + 0.09);
+      hg.gain.setValueAtTime(0.06, th); hg.gain.exponentialRampToValueAtTime(0.001, th + 0.09);
       h.connect(hf); hf.connect(hg); hg.connect(a.destination); h.start(th); h.stop(th + 0.1);
       // acid bass stabs (two 16ths after the hat), filter sweep
       [0.5, 0.75].forEach((off, j) => {
         const tb = t + off * beat, bo = a.createOscillator(), bf = a.createBiquadFilter(), bg = a.createGain();
         bo.type = 'sawtooth'; bo.frequency.value = [55, 82.4, 55, 65.4][(i + j) % 4];
         bf.type = 'lowpass'; bf.Q.value = 9; bf.frequency.setValueAtTime(300, tb); bf.frequency.exponentialRampToValueAtTime(1800, tb + 0.06); bf.frequency.exponentialRampToValueAtTime(250, tb + 0.14);
-        bg.gain.setValueAtTime(0.09, tb); bg.gain.exponentialRampToValueAtTime(0.001, tb + 0.15);
+        bg.gain.setValueAtTime(0.08, tb); bg.gain.exponentialRampToValueAtTime(0.001, tb + 0.15);
         bo.connect(bf); bf.connect(bg); bg.connect(a.destination); bo.start(tb); bo.stop(tb + 0.17);
+      });
+    }
+    if (melody) {                       // lead synth: the anthem, half speed relative to the quarter-beat grid
+      let t = t0;
+      melody.forEach(([n, q], i) => {
+        const d = q * 0.5 * beat, f = 261.63 * Math.pow(2, n / 12), last = i === melody.length - 1;
+        const g = a.createGain(), lp = a.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = 2600;
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.015);
+        g.gain.setValueAtTime(0.05, t + d * 0.75); g.gain.linearRampToValueAtTime(0.0001, t + d);
+        lp.connect(g); g.connect(a.destination);
+        [['sawtooth', 0], ['square', 7]].forEach(([type, extra]) => {
+          const o = a.createOscillator(); o.type = type; o.frequency.value = f;
+          o.detune.setValueAtTime((Math.random() - 0.5) * 30 + extra, t);      // slightly off-key
+          if (last) o.detune.linearRampToValueAtTime(-200, t + d);              // the final note sags
+          o.connect(lp); o.start(t); o.stop(t + d + 0.05);
+        });
+        t += d;
       });
     }
   }
@@ -162,7 +159,7 @@
       case 'spawn': tone(880, 0.1, 'sine', 0.05); tone(1175, 0.14, 'sine', 0.05, 0, 0.08); break;
       case 'collect': tone(660, 0.1, 'triangle', 0.12); tone(990, 0.18, 'triangle', 0.12, 0, 0.08); break;
       case 'activate':
-        if (e.item === 'alman') anthem();
+        if (e.item === 'alman') techno(ANTHEM);
         else if (e.item === 'aura') techno();
         else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
         break;
@@ -306,6 +303,24 @@
   $('btnSetupBack').onclick = () => setPhase('menu');
   $('btnScores').onclick = () => { renderScores(); setPhase('scores'); };
   $('btnScoresBack').onclick = () => setPhase('menu');
+  const PU_INFO = [
+    ['towel', 'Fluffy Towel', 'Lays a towel on <i>your</i> half for 25 s. The ball bounces high off it instead of ending the rally.'],
+    ['alman', 'Alman Mode', 'Your <i>opponents</i> get a bucket hat with flags, white socks and sandals for 10 s: only 80 % speed and 80 % jump height. Comes with a techno anthem.'],
+    ['aura', 'Aura+10', 'Cool sunglasses: for 10 s your bears\' ball hit box is <i>30 % bigger</i>, so the ball is easier to hit. Comes with a techno beat.']
+  ];
+  function renderPowerups() {
+    const list = $('puList'); list.innerHTML = '';
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    PU_INFO.forEach(([type, name, desc]) => {
+      const card = document.createElement('div'); card.className = 'pucard';
+      const cv = document.createElement('canvas'); cv.width = cv.height = 56 * dpr;
+      const c2 = cv.getContext('2d'); c2.scale(dpr, dpr); Scene.drawItemIcon(c2, type, 28, 28, 38);
+      const txt = document.createElement('div'); txt.innerHTML = `<b>${name}</b><span>${desc}</span>`;
+      card.append(cv, txt); list.appendChild(card);
+    });
+  }
+  $('btnPowerups').onclick = () => { renderPowerups(); setPhase('powerups'); };
+  $('btnPowerupsBack').onclick = () => setPhase('menu');
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
     const btn = $('btnScoresClear');
@@ -430,7 +445,7 @@
     for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
     g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
     drawBall(g.ball, g._ballRot);
-    if (phase !== 'menu' && phase !== 'scores' && phase !== 'setup') drawHUD(g, t);
+    if (phase !== 'menu' && phase !== 'scores' && phase !== 'powerups' && phase !== 'setup') drawHUD(g, t);
   }
 
   /* ------------------------------------------------------------- main loop */
@@ -452,7 +467,7 @@
         game.step();
         game.blobs.forEach(Scene.jelly);
         for (const e of game.events) { playEvent(e); if (e.type === 'hit') Scene.poke(game.blobs[e.blob], e); if (e.type === 'win') showOver(); }
-      } else if (phase === 'menu' || phase === 'scores' || phase === 'setup') {
+      } else if (phase === 'menu' || phase === 'scores' || phase === 'powerups' || phase === 'setup') {
         demo.step();
         demo.blobs.forEach(Scene.jelly);
         for (const e of demo.events) if (e.type === 'hit') Scene.poke(demo.blobs[e.blob], e);
