@@ -27,6 +27,29 @@
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
+  const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
+                   ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
+  const looks = Object.assign({ p1: { color: PALETTE[0][1], gender: 'm' }, p2: { color: PALETTE[1][1], gender: 'm' } }, store.get('vb_looks', {}));
+  function renderLooks() {
+    ['p1', 'p2'].forEach((slot, n) => {
+      const box = $('look' + (n + 1)), other = looks[slot === 'p1' ? 'p2' : 'p1'];
+      const twoPlayers = setupMode !== 'solo';
+      box.innerHTML = '';
+      PALETTE.forEach(([name, col]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name;
+        if (looks[slot].color === col) b.classList.add('sel');
+        if (twoPlayers && other.color === col) b.classList.add('taken');
+        b.onclick = () => { if (twoPlayers && other.color === col) return; looks[slot].color = col; store.set('vb_looks', looks); renderLooks(); };
+        box.appendChild(b);
+      });
+      const gap = document.createElement('span'); gap.className = 'gap'; box.appendChild(gap);
+      [['m', '♂ Male'], ['f', '♀ Female']].forEach(([g, label]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (looks[slot].gender === g ? ' sel' : ''); b.textContent = label;
+        b.onclick = () => { looks[slot].gender = g; store.set('vb_looks', looks); renderLooks(); };
+        box.appendChild(b);
+      });
+    });
+  }
 
   function setPhase(p) {
     phase = p;
@@ -107,6 +130,7 @@
       case 'collect': tone(660, 0.1, 'triangle', 0.12); tone(990, 0.18, 'triangle', 0.12, 0, 0.08); break;
       case 'activate':
         if (e.item === 'alman') anthem();
+        else if (e.item === 'aura') { [784, 988, 1319, 1568].forEach((f, i) => tone(f, 0.18, 'triangle', 0.08, 0, i * 0.07)); }   // cool sparkle
         else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
         break;
       case 'point':
@@ -174,6 +198,8 @@
     $('lbl1').textContent = mode === 'solo' ? 'Your name' : 'Player 1';
     $('hint1').textContent = mode === 'solo' ? 'WASD or arrow keys' : 'A D · W · Ctrl';
     $('hint2').textContent = '← → · ↑ · Right Ctrl';
+    if (mode !== 'solo' && looks.p1.color === looks.p2.color) looks.p2.color = (PALETTE.find(p => p[1] !== looks.p1.color) || PALETTE[1])[1];
+    renderLooks();
     setPhase('setup');
     setTimeout(() => { $('name1').focus(); $('name1').select(); }, 30);
   }
@@ -188,12 +214,15 @@
   /* --------------------------------------------------------- start a match */
   function startGame(mode, p1, p2) {
     lastSetup = { mode, p1, p2 };
-    const H = (color, label) => ({ controller: 'human', color, label });
-    const A = color => ({ controller: 'ai', color, label: 'CPU' });
+    const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, gender: looks[slot].gender, label });
+    const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
+    const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU bears take colors nobody chose
+    let ci = 0;
+    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', label: 'CPU' });
     let teams, tn;
-    if (mode === 'duel') { teams = [[H(COLORS.blue, p1)], [H(COLORS.red, p2)]]; tn = [p1, p2]; }
-    else if (mode === 'team') { teams = [[H(COLORS.blue, p1), H(COLORS.green, p2)], [A(COLORS.red), A(COLORS.yellow)]]; tn = [p1 + ' & ' + p2, 'CPU']; }
-    else { teams = [[H(COLORS.blue, p1)], [A(COLORS.red)]]; tn = [p1, 'CPU']; }
+    if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
+    else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
+    else { teams = [[H('p1', p1)], [A()]]; tn = [p1, 'CPU']; }
     game = new Sim({ teams, level: settings.level, target: settings.target });
     game.mode = mode; game.teamNames = tn;
     const humans = game.blobs.filter(b => b.controller === 'human');
@@ -335,6 +364,7 @@
       // active effects: Fluffy Towel (own half, good) and Alman Mode (slows this team down, bad)
       const fx = [];
       if (g.towels[tm] > 0) fx.push({ icon: 'towel', left: g.towels[tm], max: C.TOWEL_FRAMES, good: true });
+      if (g.aura[tm] > 0) fx.push({ icon: 'aura', left: g.aura[tm], max: C.AURA_FRAMES, good: true });
       if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
       fx.forEach((f, i) => {
         const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
@@ -374,8 +404,8 @@
   const STEP = 1000 / 60;
   let last = performance.now(), acc = 0, demoDone = 0;
   function newDemo() {
-    const A = c => ({ controller: 'ai', color: c, label: 'CPU' });
-    demo = new Sim({ teams: [[A(COLORS.blue), A(COLORS.green)], [A(COLORS.red), A(COLORS.yellow)]], level: 'normal', target: 5 });
+    const A = (c, g) => ({ controller: 'ai', color: c, gender: g, label: 'CPU' });
+    demo = new Sim({ teams: [[A(COLORS.blue, 'm'), A(COLORS.green, 'f')], [A(COLORS.red, 'f'), A(COLORS.yellow, 'm')]], level: 'normal', target: 5 });
     demo.teamNames = ['', '']; demoDone = 0;
   }
   newDemo();

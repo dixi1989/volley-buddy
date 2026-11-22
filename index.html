@@ -39,7 +39,7 @@
       <div class="keys">
         <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
         <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
-        <div class="small">Every 10–20 s a power-up appears above the net – jump up and grab it, then press Ctrl to use it.
+        <div class="small">Every 30 s each player gets a power-up falling from the sky – catch it, then press Ctrl to use it.
           Vs CPU: WASD <i>or</i> arrow keys. <kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).
           · <kbd>P</kbd> pause · <kbd>M</kbd> sound · <kbd>F</kbd> fullscreen</div>
       </div>
@@ -51,10 +51,16 @@
     <div class="panel small-panel">
       <h2 id="setupTitle">Who is playing?</h2>
       <div class="fields">
-        <label id="row1"><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
-          <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-        <label id="row2"><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
-          <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+        <div id="row1" class="prow">
+          <label><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
+            <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+          <div class="look" id="look1"></div>
+        </div>
+        <div id="row2" class="prow">
+          <label><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
+            <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+          <div class="look" id="look2"></div>
+        </div>
       </div>
       <div class="row">
         <button id="btnStart">Start</button>

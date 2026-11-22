@@ -19,13 +19,16 @@
     PU_FALL: 2.6, PU_R: 18,           // fall speed px/frame (~3 s from top to below the ground), pickup radius
     PU_MAX_INV: 3,
     TOWEL_FRAMES: 900, TOWEL_H: 5,    // 15 s
-    ALMAN_FRAMES: 600, ALMAN_MULT: 0.8 // 10 s, speed and jump height at 80 %
+    ALMAN_FRAMES: 600, ALMAN_MULT: 0.8, // 10 s, speed and jump height at 80 %
+    AURA_FRAMES: 600, AURA_MULT: 1.3    // 10 s, bear hit box 30 % larger
   };
 
   const POWERUPS = {
     towel: { name: 'Fluffy Towel' },
-    alman: { name: 'Alman Mode' }
+    alman: { name: 'Alman Mode' },
+    aura: { name: 'Aura+10' }
   };
+  const TYPES = Object.keys(POWERUPS);
 
   const LEVELS = {
     easy:   { delay: 14, err: 46, move: 0.72, jump: 0.55, grab: 0.25, use: 0.010, mult: 1.0 },
@@ -82,10 +85,12 @@
 
   /* ---------------------------------------------------------------- Blob */
   class Blob {
-    constructor(id, team, homeX, controller, color, label) {
+    constructor(id, team, homeX, controller, color, label, gender) {
       this.id = id; this.team = team; this.homeX = homeX;
       this.controller = controller; // 'human' | 'ai'
       this.color = color; this.label = label;
+      this.gender = gender === 'f' ? 'f' : 'm';   // looks only: swim trunks or bikini
+      this.aura = false;
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = 0; this.vy = 0;
       this.input = { left: false, right: false, jump: false, special: false };
@@ -173,7 +178,8 @@
       // use a stored power-up
       const held = sim.inv[b.team][0];
       if (sim.state === 'play' && held && rng() < p.use &&
-          ((held === 'towel' && sim.towels[b.team] === 0) || (held === 'alman' && sim.alman[1 - b.team] === 0))) inp.special = true;
+          ((held === 'towel' && sim.towels[b.team] === 0) || (held === 'alman' && sim.alman[1 - b.team] === 0) ||
+         (held === 'aura' && sim.aura[b.team] === 0))) inp.special = true;
     }
   }
 
@@ -190,7 +196,7 @@
         const hs = homes(team.length);
         team.forEach((spec, i) => {
           const hx = t === 0 ? C.NET_X * hs[i] : C.NET_X + C.NET_X * hs[i];
-          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label);
+          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.gender);
           if (spec.controller === 'ai') b.ai = new AI(b, this, this.level);
           this.blobs.push(b);
         });
@@ -211,6 +217,7 @@
       this.inv = [[], []];          // collected, not yet used (per team)
       this.towels = [0, 0];         // remaining frames of active Fluffy Towels (per team)
       this.alman = [0, 0];          // remaining frames of Alman Mode on each team (the team that is slowed down)
+      this.aura = [0, 0];           // remaining frames of Aura+10 on each team (bigger hit box)
       this.state = 'serve'; this.timer = C.SERVE_DELAY;
       this.startServe();
     }
@@ -266,7 +273,7 @@
         let x = lo + this.rng() * (hi - lo);
         for (let k = 0; k < 12 && placed.some(px => Math.abs(px - x) < 80); k++) x = lo + this.rng() * (hi - lo);
         placed.push(x);
-        this.items.push({ id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x, y: -30, by: -30, age: 0, owner: bl.id });
+        this.items.push({ id: ++this.puId, type: TYPES[Math.floor(this.rng() * TYPES.length)], x, y: -30, by: -30, age: 0, owner: bl.id });
       }
       this.puTimer = C.PU_INTERVAL;
       this.emit('spawn', {});
@@ -276,6 +283,7 @@
       for (let t = 0; t < 2; t++) {
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
         if (this.alman[t] > 0 && --this.alman[t] === 0) this.emit('almanEnd', { team: t });
+        if (this.aura[t] > 0 && --this.aura[t] === 0) this.emit('auraEnd', { team: t });
       }
       if (--this.puTimer <= 0) this.spawnPowerups();
       for (let i = this.items.length - 1; i >= 0; i--) {
@@ -304,6 +312,10 @@
         this.towels[team] = C.TOWEL_FRAMES;       // pressing again while active simply refreshes the timer
         this.emit('activate', { team, item: type });
         this.say(POWERUPS[type].name + '!', 70);
+      } else if (type === 'aura') {
+        this.aura[team] = C.AURA_FRAMES;           // own team: bigger hit box
+        this.emit('activate', { team, item: type });
+        this.say(POWERUPS[type].name + '!', 70);
       } else if (type === 'alman') {
         const foe = 1 - team;                     // the opponents get the hat, sandals and socks
         this.alman[foe] = C.ALMAN_FRAMES;
@@ -326,6 +338,7 @@
       b.prevSpecial = inp.special;
 
       b.alman = this.alman[b.team] > 0;
+      b.aura = this.aura[b.team] > 0;
       const slow = b.alman ? C.ALMAN_MULT : 1;
       b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow;
       b.x += b.vx;
@@ -341,7 +354,7 @@
     }
 
     collideBlob(b) {
-      const ball = this.ball, r = C.BALL_R, R = C.BLOB_R;
+      const ball = this.ball, r = C.BALL_R, R = C.BLOB_R * (b.aura ? C.AURA_MULT : 1);   // Aura+10: 30 % bigger hit box
       const dx = ball.x - b.x, dy = ball.y - b.y;
       let d = Math.hypot(dx, dy);
       const minD = R + r;

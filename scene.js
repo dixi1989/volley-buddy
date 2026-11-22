@@ -78,6 +78,14 @@
     const build = list => { ctx.beginPath(); for (const p of list) addPart(ctx, p, D); };
 
     ctx.save(); ctx.translate(b.x, b.y);
+    if (b.aura) {                                  // Aura+10: glowing ring showing the enlarged hit box
+      const ar = R * 1.3, pulse = 0.85 + 0.15 * sin(t * 6);
+      const ag = ctx.createRadialGradient(0, 0, R * 0.7, 0, 0, ar * 1.12);
+      ag.addColorStop(0, 'rgba(255,225,90,0)'); ag.addColorStop(0.8, `rgba(255,225,90,${0.38 * pulse})`); ag.addColorStop(1, 'rgba(255,225,90,0)');
+      ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(0, 0, ar * 1.12, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,236,140,${0.7 * pulse})`; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -t * 20;
+      ctx.beginPath(); ctx.arc(0, 0, ar, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
     // outline first (only the outer edge stays visible), then the shared fill
     build(parts);
     ctx.lineJoin = 'round'; ctx.lineWidth = 4.5; ctx.strokeStyle = shade(b.color, -0.55); ctx.stroke();
@@ -100,6 +108,30 @@
     const rim = ctx.createLinearGradient(-30, -30, 30, 30);
     rim.addColorStop(0, 'rgba(255,255,255,0)'); rim.addColorStop(0.55, 'rgba(255,255,255,0)'); rim.addColorStop(1, 'rgba(255,255,255,.55)');
     ctx.lineWidth = 6; ctx.strokeStyle = rim; ctx.stroke();
+    ctx.restore();
+
+    // swimwear: black speedo (male) or black bikini (female), clipped to the body
+    ctx.save(); build(parts); ctx.clip();
+    const P = (x, y) => { const q = D(x, y); return q; };
+    const poly = pts => { ctx.beginPath(); pts.forEach((p, i) => { const q = p.length === 4 ? null : P(p[0], p[1]); if (p.length === 4) { const c = P(p[0], p[1]), e = P(p[2], p[3]); ctx.quadraticCurveTo(c[0], c[1], e[0], e[1]); } else if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]); }); ctx.closePath(); };
+    const black = ctx.createLinearGradient(-18, 10, 18, 30);
+    black.addColorStop(0, '#2b3038'); black.addColorStop(0.5, '#11141a'); black.addColorStop(1, '#050608');
+    ctx.fillStyle = black; ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1;
+    if (b.gender === 'f') {
+      poly([[-16, 16.5], [16, 16.5], [0, 29]]); ctx.fill();                  // bikini bottom
+      ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+      [[-16, 16.5, -26, 14.5], [16, 16.5, 26, 14.5]].forEach(l => { const a = P(l[0], l[1]), c = P(l[2], l[3]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.stroke(); });
+      poly([[-14.5, 5], [-2, 5], [-2, 11.5], [-8, 14.5], [-14.5, 11.5]]); ctx.fill();   // bikini top, left cup
+      poly([[14.5, 5], [2, 5], [2, 11.5], [8, 14.5], [14.5, 11.5]]); ctx.fill();        // right cup
+      ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 1.5;
+      [[-2, 6, 2, 6], [-14.5, 6, -26, 7], [14.5, 6, 26, 7]].forEach(l => { const a = P(l[0], l[1]), c = P(l[2], l[3]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.stroke(); });
+      ctx.fillStyle = 'rgba(255,255,255,.2)'; build([[-8.5, 8, 2.8, 1.3, -0.3], [8.5, 8, 2.8, 1.3, 0.3], [-5, 19.5, 2.4, 1.2, 0.5]]); ctx.fill();
+    } else {
+      poly([[-23, 12], [23, 12], [23, 17], [11, 19.5, 5, 28.5], [-5, 28.5], [-11, 19.5, -23, 17]]); ctx.fill();   // speedo
+      ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.2;
+      const w0 = P(-21, 12.6), w1 = P(21, 12.6); ctx.beginPath(); ctx.moveTo(w0[0], w0[1]); ctx.lineTo(w1[0], w1[1]); ctx.stroke();   // waistband
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; build([[-9, 17, 4, 1.6, 0.3]]); ctx.fill();
+    }
     ctx.restore();
 
     // highlights
@@ -144,6 +176,21 @@
     const m0 = D(-3.2, -6.6), m1 = D(0, -4.2), m2 = D(3.2, -6.6);
     ctx.strokeStyle = shade(b.color, -0.65); ctx.lineWidth = 1.3; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(m0[0], m0[1]); ctx.quadraticCurveTo(m1[0], m1[1], m2[0], m2[1]); ctx.stroke();
+    if (b.aura) {                                  // Aura+10: cool sunglasses
+      ctx.save();
+      const l0 = D(-6.8, -16.5), r0 = D(6.8, -16.5);
+      ctx.strokeStyle = '#0b0d12'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(l0[0] + 5.5 * sx, l0[1] - 0.5); ctx.lineTo(r0[0] - 5.5 * sx, r0[1] - 0.5); ctx.stroke();
+      const lensG = ctx.createLinearGradient(0, l0[1] - 5, 0, l0[1] + 5); lensG.addColorStop(0, '#2f4a74'); lensG.addColorStop(0.5, '#10151f'); lensG.addColorStop(1, '#05070a');
+      [l0, r0].forEach(p => {
+        ctx.fillStyle = lensG; ctx.strokeStyle = '#05070a'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.ellipse(p[0], p[1], 6.4 * sx, 4.8 * sy, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(p[0] - 2.2 * sx, p[1] - 1.8 * sy, 2.2 * sx, 0.9 * sy, -0.5, 0, TAU); ctx.fill();
+      });
+      ctx.strokeStyle = '#0b0d12'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(l0[0] - 6.2 * sx, l0[1] - 1); ctx.lineTo(l0[0] - 9.5 * sx, l0[1] - 2.5); ctx.moveTo(r0[0] + 6.2 * sx, r0[1] - 1); ctx.lineTo(r0[0] + 9.5 * sx, r0[1] - 2.5); ctx.stroke();
+      ctx.restore();
+    }
     // Alman Mode: bucket hat with little German flags
     if (b.alman) {
       const hp = D(0, -21);
@@ -383,6 +430,22 @@
 
   /* ------------------------------------------------------ Power-ups */
   function drawItemIcon(ctx, type, x, y, size) {
+    if (type === 'aura') {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-0.06); const k = size / 30; ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(0, 10, 15, 2.6, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#0a0c10'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-14, -3); ctx.lineTo(-17.5, -6); ctx.moveTo(14, -3); ctx.lineTo(17.5, -6); ctx.stroke();   // temples
+      ctx.beginPath(); ctx.moveTo(-3, -2); ctx.quadraticCurveTo(0, -5, 3, -2); ctx.stroke();                                // bridge
+      const lg = ctx.createLinearGradient(0, -6, 0, 9); lg.addColorStop(0, '#4a78c0'); lg.addColorStop(0.45, '#141b2b'); lg.addColorStop(1, '#05070a');
+      [-8.8, 8.8].forEach(cx => {
+        ctx.fillStyle = lg; ctx.strokeStyle = '#05070a'; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(cx - 8.2, -4.5); ctx.lineTo(cx + 8.2, -4.5); ctx.quadraticCurveTo(cx + 8.2, 8.5, cx + 1, 8.5);
+        ctx.quadraticCurveTo(cx - 8.2, 8.5, cx - 8.2, -4.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(cx - 3.2, -1.6, 3.4, 1.1, -0.55, 0, TAU); ctx.fill();
+      });
+      ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-6, -8.5); ctx.lineTo(6, -8.5); ctx.stroke();   // little shine
+      ctx.restore(); return;
+    }
     if (type === 'alman') {
       ctx.save(); ctx.translate(x, y + 6 * size / 30); ctx.rotate(-0.08); const k = size / 30; ctx.scale(k, k);
       ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(1, 5, 15, 3, 0, 0, TAU); ctx.fill();
