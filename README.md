@@ -8,3 +8,5 @@ PWA im Stil von Blobby Volley (HTML/Canvas/JS, offline-fähig).
 - Highscore im Browser (localStorage)
 
 Lokal testen: `python3 -m http.server` und http://localhost:8000 öffnen.
+
+Live: https://dixi1989.github.io/volley-buddy/
