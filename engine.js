@@ -18,11 +18,13 @@
     PU_MIN: 600, PU_MAX: 1200,        // spawn every 10-20 s of rally time
     PU_Y: 172, PU_R: 18, PU_TTL: 600, // hover height, pickup radius, 10 s lifetime
     PU_MAX_INV: 3,
-    TOWEL_FRAMES: 900, TOWEL_H: 5     // 15 s
+    TOWEL_FRAMES: 900, TOWEL_H: 5,    // 15 s
+    ALMAN_FRAMES: 600, ALMAN_MULT: 0.8 // 10 s, speed and jump height at 80 %
   };
 
   const POWERUPS = {
-    towel: { name: 'Fluffy Towel' }
+    towel: { name: 'Fluffy Towel' },
+    alman: { name: 'Alman Mode' }
   };
 
   const LEVELS = {
@@ -166,7 +168,9 @@
       }
 
       // use a stored power-up
-      if (sim.state === 'play' && sim.inv[b.team].length && sim.towels[b.team] === 0 && rng() < p.use) inp.special = true;
+      const held = sim.inv[b.team][0];
+      if (sim.state === 'play' && held && rng() < p.use &&
+          ((held === 'towel' && sim.towels[b.team] === 0) || (held === 'alman' && sim.alman[1 - b.team] === 0))) inp.special = true;
     }
   }
 
@@ -203,6 +207,7 @@
       this.puTimer = this.randPuTime();
       this.inv = [[], []];          // collected, not yet used (per team)
       this.towels = [0, 0];         // remaining frames of active Fluffy Towels (per team)
+      this.alman = [0, 0];          // remaining frames of Alman Mode on each team (the team that is slowed down)
       this.state = 'serve'; this.timer = C.SERVE_DELAY;
       this.startServe();
     }
@@ -252,7 +257,7 @@
 
     /* ---- power-ups ---- */
     spawnPowerup() {
-      this.powerup = { id: ++this.puId, type: 'towel', x: C.NET_X, y: -30, by: -30, landed: false, age: 0, ttl: C.PU_TTL };
+      this.powerup = { id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x: C.NET_X, y: -30, by: -30, landed: false, age: 0, ttl: C.PU_TTL };
       this.puTimer = this.randPuTime();      // next spawn in 10-20 s, whether or not this one is picked up
       this.emit('spawn', {});
     }
@@ -260,6 +265,7 @@
       if (this.state !== 'play') return;
       for (let t = 0; t < 2; t++) {
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
+        if (this.alman[t] > 0 && --this.alman[t] === 0) this.emit('almanEnd', { team: t });
       }
       const pu = this.powerup;
       if (--this.puTimer <= 0 && !pu) this.spawnPowerup();
@@ -291,6 +297,11 @@
         this.towels[team] = C.TOWEL_FRAMES;       // pressing again while active simply refreshes the timer
         this.emit('activate', { team, item: type });
         this.say(POWERUPS[type].name + '!', 70);
+      } else if (type === 'alman') {
+        const foe = 1 - team;                     // the opponents get the hat, sandals and socks
+        this.alman[foe] = C.ALMAN_FRAMES;
+        this.emit('activate', { team, item: type, target: foe });
+        this.say(POWERUPS[type].name + '!', 70);
       }
     }
     onTowel(x) {
@@ -307,13 +318,16 @@
       if (inp.special && !b.prevSpecial) this.activate(b.team);
       b.prevSpecial = inp.special;
 
-      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED;
+      b.alman = this.alman[b.team] > 0;
+      const slow = b.alman ? C.ALMAN_MULT : 1;
+      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow;
       b.x += b.vx;
       const r = C.BLOB_R;
       if (b.team === 0) b.x = clamp(b.x, r, C.NET_X - C.NET_HW - r);
       else b.x = clamp(b.x, C.NET_X + C.NET_HW + r, C.W - r);
 
-      if (inp.jump && b.onGround) { b.vy = C.JUMP_V; this.emit('jump', { blob: b.id }); }
+      // Alman Mode: 80 % of the jump height needs sqrt(0.8) of the launch speed
+      if (inp.jump && b.onGround) { b.vy = C.JUMP_V * (b.alman ? Math.sqrt(C.ALMAN_MULT) : 1); this.emit('jump', { blob: b.id }); }
       b.vy += C.BLOB_G; b.y += b.vy;
       const rest = C.GROUND - r;
       if (b.y >= rest) { b.y = rest; b.vy = 0; }

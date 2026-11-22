@@ -115,6 +115,23 @@
     gloss(-24, -1 + armDy, 2.6, 4.2, -0.3, 0.55); gloss(-13, 22, 3.6, 2, 0, 0.5);
     gloss(9, 21, 5, 3, 0, 0.16);
 
+    // Alman Mode: white socks in sandals
+    if (b.alman) {
+      [-11 + stepx, 11 - stepx].forEach(fx => {
+        const sole = D(fx, 28.6), sock = D(fx, 23.4);
+        ctx.fillStyle = '#7b4a22'; ctx.strokeStyle = 'rgba(40,20,5,.8)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(sole[0], sole[1], 9.8 * sx, 3.3 * sy, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.3)';
+        ctx.beginPath(); ctx.ellipse(sock[0], sock[1] - 0.6, 8 * sx, 5.3 * sy, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,.14)'; ctx.lineWidth = 0.9;
+        for (let k = -4; k <= 4; k += 2) { ctx.beginPath(); ctx.moveTo(sock[0] + k * sx, sock[1] - 4 * sy); ctx.lineTo(sock[0] + k * sx, sock[1] + 3 * sy); ctx.stroke(); }
+        const a0 = D(fx - 8.5, 27.2), a1 = D(fx, 19.8), a2 = D(fx + 8.5, 27.2);
+        ctx.strokeStyle = '#7b4a22'; ctx.lineWidth = 2.1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.quadraticCurveTo(a1[0], a1[1], a2[0], a2[1]); ctx.stroke();
+        ctx.fillStyle = '#d9b44a'; ctx.beginPath(); ctx.arc(a1[0], a1[1] + 2.2 * sy, 1.3, 0, TAU); ctx.fill();   // buckle
+      });
+    }
+
     // face: black bead eyes follow the ball
     const dx = ball.x - b.x, dy = ball.y - b.y, d = Math.hypot(dx, dy) || 1;
     [-6.5, 6.5].forEach(o => {
@@ -127,13 +144,21 @@
     const m0 = D(-3.2, -6.6), m1 = D(0, -4.2), m2 = D(3.2, -6.6);
     ctx.strokeStyle = shade(b.color, -0.65); ctx.lineWidth = 1.3; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(m0[0], m0[1]); ctx.quadraticCurveTo(m1[0], m1[1], m2[0], m2[1]); ctx.stroke();
+    // Alman Mode: bucket hat with little German flags
+    if (b.alman) {
+      const hp = D(0, -21);
+      ctx.save(); ctx.translate(hp[0], hp[1]); ctx.rotate(j.lean * 0.3 - 0.05); ctx.scale(sx, sy);
+      bucketHat(ctx, 21, 15, 11.5, 5.8);
+      ctx.restore();
+    }
 
     ctx.restore();
 
     // name tag
     ctx.font = '700 11px system-ui,sans-serif'; ctx.textAlign = 'center';
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(b.label, b.x, b.y - R - 9, 96);
-    ctx.fillStyle = 'rgba(10,25,45,.85)'; ctx.fillText(b.label, b.x, b.y - R - 9, 96);
+    const ly = b.y - R - 9 - (b.alman ? 11 : 0);   // sit above the hat
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(b.label, b.x, ly, 96);
+    ctx.fillStyle = 'rgba(10,25,45,.85)'; ctx.fillText(b.label, b.x, ly, 96);
   }
 
   /* ------------------------------------------------------ Background */
@@ -320,8 +345,50 @@
   }
 
 
+
+  /* ------------------------------------------------------ Alman hat */
+  function flagPatch(ctx, x, y, w, h, rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+    const s = h / 3;
+    ctx.fillStyle = '#141414'; ctx.fillRect(-w / 2, -h / 2, w, s);
+    ctx.fillStyle = '#dd0000'; ctx.fillRect(-w / 2, -h / 2 + s, w, s);
+    ctx.fillStyle = '#ffce00'; ctx.fillRect(-w / 2, -h / 2 + 2 * s, w, s);
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 0.6; ctx.strokeRect(-w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  /* bucket hat covered in small German flags; origin = centre of the brim, crown grows upwards */
+  function bucketHat(ctx, bw, ch, tw, brimRy) {
+    const cwb = bw * 0.64;
+    ctx.lineJoin = 'round';
+    // brim
+    ctx.fillStyle = '#f6f1e2'; ctx.strokeStyle = 'rgba(80,70,50,.7)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(0, 0, bw, brimRy, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    // crown
+    ctx.beginPath(); ctx.moveTo(-cwb, 0); ctx.lineTo(-tw, -ch);
+    ctx.quadraticCurveTo(0, -ch - brimRy * 1.3, tw, -ch); ctx.lineTo(cwb, 0);
+    ctx.quadraticCurveTo(0, brimRy * 0.95, -cwb, 0); ctx.closePath();
+    const g = ctx.createLinearGradient(-cwb, 0, cwb, 0);
+    g.addColorStop(0, '#e9e2cf'); g.addColorStop(0.45, '#fffdf4'); g.addColorStop(1, '#ddd5c0');
+    ctx.fillStyle = g; ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.clip();
+    const w = Math.max(5, bw * 0.44), h = w * 0.64;
+    for (let r = 0; r < 3; r++) for (let c = -1; c <= 1; c++) {
+      flagPatch(ctx, c * (w + 1.5) + (r % 2 ? w * 0.5 : 0), -ch * 0.18 - r * (h + 1.5), w, h, (c + r) % 2 ? 0.12 : -0.1);
+    }
+    ctx.restore();
+    // stitching on the brim
+    ctx.strokeStyle = 'rgba(120,100,70,.55)'; ctx.lineWidth = 0.8; ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.ellipse(0, 0, bw * 0.86, brimRy * 0.78, 0, 0, Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  }
+
   /* ------------------------------------------------------ Power-ups */
   function drawItemIcon(ctx, type, x, y, size) {
+    if (type === 'alman') {
+      ctx.save(); ctx.translate(x, y + 6 * size / 30); ctx.rotate(-0.08); const k = size / 30; ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(1, 5, 15, 3, 0, 0, TAU); ctx.fill();
+      bucketHat(ctx, 15.5, 12.5, 8.5, 4.6);
+      ctx.restore(); return;
+    }
     ctx.save(); ctx.translate(x, y); ctx.rotate(-0.12); const k = size / 30; ctx.scale(k, k);
     // folded fluffy towel
     ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(1, 9, 13, 3, 0, 0, TAU); ctx.fill();

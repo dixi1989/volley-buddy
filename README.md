@@ -8,6 +8,7 @@ Beach volleyball as a PWA with gummy-bear characters (HTML/Canvas/JS, works offl
 - Enter your name(s) before each match; high scores are stored in the browser (localStorage)
 - **Power-ups:** every 10–20 s one appears above the net. Jump up to collect it, press Ctrl to use it.
   - *Fluffy Towel* – lays 2 towels on your half of the court for 15 s; the ball bounces on them instead of ending the rally.
+  - *Alman Mode* – your opponents get a flag-covered bucket hat, white socks and sandals for 10 s: they move at 80 % speed and jump 80 % as high.
 
 Run locally: `python3 -m http.server`, then open http://localhost:8000
 

@@ -78,7 +78,10 @@
       case 'towel': tone(140, 0.16, 'sine', 0.16, -50); tone(210, 0.1, 'triangle', 0.06, 40, 0.02); break;
       case 'spawn': tone(880, 0.1, 'sine', 0.05); tone(1175, 0.14, 'sine', 0.05, 0, 0.08); break;
       case 'collect': tone(660, 0.1, 'triangle', 0.12); tone(990, 0.18, 'triangle', 0.12, 0, 0.08); break;
-      case 'activate': tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); break;
+      case 'activate':
+        if (e.item === 'alman') { [0, 0.16, 0.32, 0.48].forEach((d, i) => tone(i % 2 ? 196 : 110, 0.14, 'square', 0.09, 0, d)); }   // oom-pah
+        else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
+        break;
       case 'point':
         if (e.scored) { tone(523, 0.14, 'triangle', 0.12); tone(659, 0.2, 'triangle', 0.12, 0, 0.1); }
         else tone(300, 0.25, 'triangle', 0.1, -120);
@@ -302,15 +305,19 @@
         ctx.fillStyle = `rgba(255,236,120,${0.7 + 0.3 * Math.sin(t * 6)})`;
         ctx.fillText(g.mode === 'duel' && tm === 1 ? 'R-Ctrl' : 'Ctrl', tm === 0 ? 270 : 530, 59);
       }
-      if (g.towels[tm] > 0) {
-        const x = tm === 0 ? 180 : 515, left = g.towels[tm];
-        ctx.fillStyle = 'rgba(8,28,48,.6)'; rr(x, 64, 105, 17, 8); ctx.fill();
-        Scene.drawItemIcon(ctx, 'towel', x + 11, 72.5, 15);
-        ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, 70, 58, 5);
-        ctx.fillStyle = left < 180 ? '#ff9d8a' : '#7fe3a0'; ctx.fillRect(x + 23, 70, 58 * left / C.TOWEL_FRAMES, 5);
+      // active effects: Fluffy Towel (own half, good) and Alman Mode (slows this team down, bad)
+      const fx = [];
+      if (g.towels[tm] > 0) fx.push({ icon: 'towel', left: g.towels[tm], max: C.TOWEL_FRAMES, good: true });
+      if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
+      fx.forEach((f, i) => {
+        const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
+        ctx.fillStyle = f.good ? 'rgba(8,28,48,.6)' : 'rgba(90,10,10,.65)'; rr(x, y, 105, 17, 8); ctx.fill();
+        Scene.drawItemIcon(ctx, f.icon, x + 11, y + 8.5, 15);
+        ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, y + 6, 58, 5);
+        ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#7fe3a0' : '#ffce00'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
         ctx.font = '700 10px system-ui'; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
-        ctx.fillText(Math.ceil(left / 60) + 's', x + 100, 76);
-      }
+        ctx.fillText(Math.ceil(f.left / 60) + 's', x + 100, y + 12);
+      });
     }
     if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }
     // messages
