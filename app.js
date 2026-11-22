@@ -211,94 +211,6 @@
   $('btnInstall').onclick = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('btnInstall').hidden = true; };
 
   /* ------------------------------------------------------------- Rendering */
-  function shade(hex, amt) {
-    const n = parseInt(hex.slice(1), 16);
-    let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    const f = v => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt))));
-    return `rgb(${f(r)},${f(g)},${f(b)})`;
-  }
-
-  function drawBackground(t) {
-    const g = ctx.createLinearGradient(0, 0, 0, 330);
-    g.addColorStop(0, '#4aa9f0'); g.addColorStop(1, '#bfe7ff');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, C.W, C.H);
-    // Sonne
-    const sg = ctx.createRadialGradient(660, 80, 8, 660, 80, 90);
-    sg.addColorStop(0, 'rgba(255,248,200,1)'); sg.addColorStop(0.35, 'rgba(255,240,160,.9)'); sg.addColorStop(1, 'rgba(255,240,160,0)');
-    ctx.fillStyle = sg; ctx.fillRect(540, 0, 260, 200);
-    // Wolken
-    ctx.fillStyle = 'rgba(255,255,255,.85)';
-    [[0.02, 70, 1], [0.035, 150, 0.8], [0.015, 220, 1.2]].forEach(([sp, y, s], i) => {
-      const x = ((t * sp * 60 + i * 300) % (C.W + 200)) - 100;
-      ctx.beginPath();
-      ctx.ellipse(x, y, 44 * s, 15 * s, 0, 0, 7); ctx.ellipse(x + 24 * s, y - 10 * s, 28 * s, 16 * s, 0, 0, 7);
-      ctx.ellipse(x - 24 * s, y - 6 * s, 24 * s, 13 * s, 0, 0, 7); ctx.fill();
-    });
-    // Meer
-    const sea = ctx.createLinearGradient(0, 300, 0, 385);
-    sea.addColorStop(0, '#3f9fd8'); sea.addColorStop(1, '#2478b5');
-    ctx.fillStyle = sea; ctx.fillRect(0, 300, C.W, 85);
-    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
-    for (let i = 0; i < 6; i++) {
-      const y = 312 + i * 12, off = (t * 20 * (1 + i * 0.1)) % 60;
-      ctx.beginPath();
-      for (let x = -60; x < C.W + 60; x += 60) { ctx.moveTo(x + off + (i % 2) * 20, y); ctx.quadraticCurveTo(x + off + 15 + (i % 2) * 20, y - 4, x + off + 30 + (i % 2) * 20, y); }
-      ctx.stroke();
-    }
-    // Sand
-    const sand = ctx.createLinearGradient(0, 372, 0, C.H);
-    sand.addColorStop(0, '#f6dfa0'); sand.addColorStop(1, '#e0b865');
-    ctx.fillStyle = sand; ctx.beginPath(); ctx.moveTo(0, 384); ctx.quadraticCurveTo(400, 370, 800, 384); ctx.lineTo(800, C.H); ctx.lineTo(0, C.H); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(0, C.GROUND + 1, C.W, 2);
-    // Netz-Schatten + Pfosten
-    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(C.NET_X, C.GROUND + 6, 18, 4, 0, 0, 7); ctx.fill();
-    const x0 = C.NET_X - C.NET_HW, w = C.NET_HW * 2, h = C.GROUND - C.NET_TOP;
-    const pg = ctx.createLinearGradient(x0, 0, x0 + w, 0);
-    pg.addColorStop(0, '#d9d9d9'); pg.addColorStop(0.4, '#ffffff'); pg.addColorStop(1, '#b9b9b9');
-    ctx.fillStyle = pg; ctx.fillRect(x0, C.NET_TOP, w, h);
-    ctx.fillStyle = '#e8453c';
-    for (let y = C.NET_TOP + 14; y < C.GROUND - 6; y += 28) ctx.fillRect(x0, y, w, 10);
-    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(C.NET_X, C.NET_TOP, C.NET_HW, Math.PI, 0); ctx.fill();
-  }
-
-  function drawBlob(b, ball) {
-    const R = C.BLOB_R;
-    // Schatten
-    const hgt = Math.max(0, (C.GROUND - R) - b.y);
-    ctx.fillStyle = `rgba(0,0,0,${0.22 - Math.min(0.14, hgt / 900)})`;
-    ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * (1 - hgt / 600), 6, 0, 0, 7); ctx.fill();
-
-    let sy = 1;
-    if (b.onGround) sy = 1 - b.squash * 0.28; else sy = 1 + Math.min(0.12, Math.abs(b.vy) * 0.01);
-    const sx = 1 / sy;
-    ctx.save();
-    ctx.translate(b.x, b.y + R); ctx.scale(sx, sy); ctx.translate(0, -R);
-    const bg = ctx.createRadialGradient(-9, -12, 4, 0, 0, R + 4);
-    bg.addColorStop(0, shade(b.color, 0.45)); bg.addColorStop(0.6, b.color); bg.addColorStop(1, shade(b.color, -0.35));
-    ctx.fillStyle = bg; ctx.strokeStyle = shade(b.color, -0.55); ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-10, -16, 9, 5, -0.6, 0, 7); ctx.fill();
-    // Augen schauen zum Ball
-    const dx = ball.x - b.x, dy = ball.y - b.y, d = Math.hypot(dx, dy) || 1;
-    const look = Math.max(-1, Math.min(1, dx / 120)) * 5;
-    [-9, 9].forEach(ex => {
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(ex + look, -5, 6.5, 8, 0, 0, 7); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1; ctx.stroke();
-      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ex + look + dx / d * 2.6, -5 + dy / d * 3.4, 3, 0, 7); ctx.fill();
-    });
-    if (b.smash > 0) {
-      ctx.strokeStyle = `rgba(255,236,90,${0.4 + 0.6 * b.smash / C.SMASH_WINDOW})`; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(0, 0, R + 6, 0, 7); ctx.stroke();
-    }
-    ctx.restore();
-    // Beschriftung + Smash-Balken
-    ctx.font = '700 11px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.55)';
-    ctx.fillText(b.label, b.x, b.y - R - 14);
-    const ready = 1 - b.smashCd / C.SMASH_COOLDOWN;
-    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(b.x - 13, b.y - R - 10, 26, 4);
-    ctx.fillStyle = ready >= 1 ? '#ffe066' : '#ffffffaa'; ctx.fillRect(b.x - 13, b.y - R - 10, 26 * ready, 4);
-  }
-
   function drawBall(ball, rotRef) {
     const r = C.BALL_R;
     const gh = Math.max(0, C.GROUND - ball.y);
@@ -321,6 +233,9 @@
     ctx.fillStyle = '#f2b705'; ctx.fillRect(-r, -3.5, 2 * r, 7);
     ctx.fillStyle = '#2f80ed'; ctx.fillRect(-3.5, -r, 7, 2 * r);
     ctx.restore();
+    const sp = ctx.createRadialGradient(ball.x - 6, ball.y - 7, 0, ball.x - 6, ball.y - 7, 9);
+    sp.addColorStop(0, 'rgba(255,255,255,.85)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sp; ctx.beginPath(); ctx.arc(ball.x - 6, ball.y - 7, 9, 0, 7); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(ball.x, ball.y, r, 0, 7); ctx.stroke();
   }
@@ -365,10 +280,10 @@
 
   function render(t) {
     const g = game || demo;
-    drawBackground(t);
+    Scene.drawBackground(ctx, t);
     if (!g) return;
     g._ballRot = g._ballRot || { rot: 0 };
-    g.blobs.forEach(b => drawBlob(b, g.ball));
+    g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
     drawBall(g.ball, g._ballRot);
     if (phase !== 'menu' && phase !== 'scores') drawHUD(g);
   }
@@ -390,9 +305,12 @@
       if (phase === 'play' || phase === 'over') {
         if (phase === 'play') game.blobs.forEach(b => { if (b.controller === 'human') Object.assign(b.input, readFor(b)); });
         game.step();
-        for (const e of game.events) { playEvent(e); if (e.type === 'win') showOver(); }
+        game.blobs.forEach(Scene.jelly);
+        for (const e of game.events) { playEvent(e); if (e.type === 'hit') Scene.poke(game.blobs[e.blob], e); if (e.type === 'win') showOver(); }
       } else if (phase === 'menu' || phase === 'scores') {
         demo.step();
+        demo.blobs.forEach(Scene.jelly);
+        for (const e of demo.events) if (e.type === 'hit') Scene.poke(demo.blobs[e.blob], e);
         if (demo.state === 'over' && ++demoDone > 150) newDemo();
       }
     }

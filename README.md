@@ -1,6 +1,6 @@
 # Volley-Buddy
 
-PWA im Stil von Blobby Volley (HTML/Canvas/JS, offline-fähig).
+Strand-Volleyball als PWA mit Wackelpudding-Figuren (HTML/Canvas/JS, offline-fähig).
 
 - 1:1 lokal (P1: A/D/W + Strg links, P2: Pfeile + Strg rechts)
 - 2:2 (zwei Spieler gegen 2 KI)
