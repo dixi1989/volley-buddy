@@ -81,9 +81,9 @@
     return ac;
   }
   /* Short techno loop at 128 BPM: four-on-the-floor kick, off-beat hi-hat, acid bass stabs.
-     Aura+10 uses the plain beat; Alman Mode lays the first line of the German anthem ("Einigkeit und Recht und Freiheit",
-     Haydn, G major) on top as a slightly off-key lead synth. */
-  const ANTHEM = [[2, .5], [7, 1.5], [9, .5], [11, 1], [9, 1], [12, 1], [11, 1], [9, 2.5]];   // [semitones above C4, quarter-beats]
+     Aura+10 uses the plain beat; Alman Mode is a techno version of the German anthem's first line
+     ("Einigkeit und Recht und Freiheit", Haydn, G major): same beat plus a clean, in-tune lead synth. */
+  const ANTHEM = [[2, .5], [7, 1.5], [9, .5], [11, 1], [9, 1], [12, 1], [11, 1], [9, 2]];   // [semitones above C4, beats]
   function techno(melody) {
     if (settings.muted) return;
     const a = audio(); if (!a) return;
@@ -94,7 +94,7 @@
       return noiseBuf;
     };
     let total = 4;
-    if (melody) total = Math.ceil(melody.reduce((s, m) => s + m[1], 0) * 0.5);
+    if (melody) total = Math.ceil(melody.reduce((s, m) => s + m[1], 0));
     for (let i = 0; i < total; i++) {
       const t = t0 + i * beat;
       // kick
@@ -116,20 +116,19 @@
         bo.connect(bf); bf.connect(bg); bg.connect(a.destination); bo.start(tb); bo.stop(tb + 0.17);
       });
     }
-    if (melody) {                       // lead synth: the anthem, half speed relative to the quarter-beat grid
+    if (melody) {                       // lead synth playing the anthem, in tune, plucky filter envelope
       let t = t0;
-      melody.forEach(([n, q], i) => {
-        const d = q * 0.5 * beat, f = 261.63 * Math.pow(2, n / 12), last = i === melody.length - 1;
+      melody.forEach(([n, q]) => {
+        const d = q * beat, f = 261.63 * Math.pow(2, n / 12);
         const g = a.createGain(), lp = a.createBiquadFilter();
-        lp.type = 'lowpass'; lp.frequency.value = 2600;
-        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.015);
-        g.gain.setValueAtTime(0.05, t + d * 0.75); g.gain.linearRampToValueAtTime(0.0001, t + d);
+        lp.type = 'lowpass'; lp.Q.value = 4;
+        lp.frequency.setValueAtTime(3800, t); lp.frequency.exponentialRampToValueAtTime(900, t + Math.min(d, 0.35));
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.075, t + 0.01);
+        g.gain.setValueAtTime(0.06, t + d * 0.7); g.gain.linearRampToValueAtTime(0.0001, t + d * 0.97);
         lp.connect(g); g.connect(a.destination);
-        [['sawtooth', 0], ['square', 7]].forEach(([type, extra]) => {
-          const o = a.createOscillator(); o.type = type; o.frequency.value = f;
-          o.detune.setValueAtTime((Math.random() - 0.5) * 30 + extra, t);      // slightly off-key
-          if (last) o.detune.linearRampToValueAtTime(-200, t + d);              // the final note sags
-          o.connect(lp); o.start(t); o.stop(t + d + 0.05);
+        [['sawtooth', 5], ['sawtooth', -5], ['square', 0]].forEach(([type, cents]) => {
+          const o = a.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = cents;   // fixed unison detune = width, still in tune
+          o.connect(lp); o.start(t); o.stop(t + d);
         });
         t += d;
       });
