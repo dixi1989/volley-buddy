@@ -16,3 +16,5 @@ Run locally: `python3 -m http.server`, then open http://localhost:8000
 Live: https://dixi1989.github.io/volley-buddy/
 
 Bears: every player picks a color (8 to choose from) and a gender in the name screen – male bears wear black speedos, female bears a black bikini. Choices are remembered.
+
+Sound: a light 80s Miami-style synth groove plays in the background with an occasional seagull screech (menu option *Music*, key N; M mutes all sound). Controls and the rules live in their own menu pages (Controls, How to play), and the Power-ups page lists all power-ups.

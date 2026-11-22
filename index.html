@@ -28,6 +28,9 @@
         <label>CPU level
           <select id="level"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
         </label>
+        <label>Music
+          <select id="music"><option value="on">On</option><option value="off">Off</option></select>
+        </label>
         <label>Points to win
           <select id="target"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
         </label>
@@ -35,14 +38,9 @@
       <div class="row">
         <button id="btnScores" class="ghost">🏆 High scores</button>
         <button id="btnPowerups" class="ghost">⚡ Power-ups</button>
+        <button id="btnControls" class="ghost">⌨ Controls</button>
+        <button id="btnHowto" class="ghost">❓ How to play</button>
         <button id="btnInstall" class="ghost" hidden>⬇ Install</button>
-      </div>
-      <div class="keys">
-        <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
-        <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
-        <div class="small">Every 30 s each player gets a power-up falling from the sky – catch it, then press Ctrl to use it.
-          Vs CPU: WASD <i>or</i> arrow keys. <kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).
-          · <kbd>P</kbd> pause · <kbd>M</kbd> sound · <kbd>F</kbd> fullscreen</div>
       </div>
     </div>
   </div>
@@ -91,6 +89,39 @@
       <p class="sub">Every 30 s each player gets one falling from the sky – catch it (max. 3 stored), then press Ctrl to use it.</p>
       <div id="puList" class="pulist"></div>
       <div class="row"><button id="btnPowerupsBack">Back</button></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls" class="overlay" hidden>
+    <div class="panel">
+      <h2>⌨ Controls</h2>
+      <div class="keys">
+        <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
+        <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
+        <div><b>1 vs CPU</b> WASD <i>or</i> arrow keys</div>
+        <div class="small"><kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).</div>
+        <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pick a mode in the menu</div>
+      </div>
+      <div class="row"><button id="btnControlsBack">Back</button></div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="howto" class="overlay" hidden>
+    <div class="panel">
+      <h2>❓ How to play</h2>
+      <ul class="howto">
+        <li><b>Goal:</b> be the first team to reach the target score (5, 11 or 15 – your choice in the menu).</li>
+        <li><b>Serve scoring:</b> only the serving team scores. If the other team wins the rally, it is a side-out and they serve next.</li>
+        <li><b>A rally ends</b> when the ball touches the sand on one side. The team on the other side wins it.</li>
+        <li><b>Three touches:</b> each team may hit the ball up to 3 times in a row. A 4th touch is a fault.</li>
+        <li><b>Serve:</b> the ball hangs in the air for a moment and then drops by itself – but you can hit it right away.</li>
+        <li><b>Modes:</b> 1 : 1 on one keyboard, 2 : 2 with two humans against two CPU bears, or 1 : 1 against the CPU (Easy / Normal / Hard).</li>
+        <li><b>Power-ups:</b> every 30 s each player gets one falling from the sky. Catch it with your bear (3 can be stored), then press Ctrl to use it. See the Power-ups page for what they do.</li>
+        <li><b>High scores:</b> wins against the CPU count – points = lead × 100 × level factor + longest rally × 10.</li>
+      </ul>
+      <div class="row"><button id="btnHowtoBack">Back</button></div>
     </div>
   </div>
 

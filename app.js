@@ -13,7 +13,7 @@
   };
   const LEVEL_MAP = { leicht: 'easy', mittel: 'normal', schwer: 'hard' };   // saved by earlier versions
   const LEVEL_LABEL = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
-  const settings = Object.assign({ level: 'normal', target: 11, muted: false }, store.get('vb_settings', {}));
+  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true }, store.get('vb_settings', {}));
   settings.level = LEVEL_MAP[settings.level] || settings.level;
   if (!LEVELS[settings.level]) settings.level = 'normal';
   let names = Object.assign({ p1: '', p2: '' }, store.get('vb_names', {}));
@@ -21,11 +21,12 @@
   let duel = store.get('vb_duel', [0, 0]);
   const saveSettings = () => store.set('vb_settings', settings);
 
-  $('level').value = settings.level; $('target').value = String(settings.target);
+  $('level').value = settings.level; $('target').value = String(settings.target); $('music').value = settings.music ? 'on' : 'off';
 
   /* --------------------------------------------------------------- state */
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
+  const MENU_PHASES = new Set(['menu', 'setup', 'scores', 'powerups', 'controls', 'howto']);
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
@@ -57,6 +58,8 @@
     $('setup').hidden = p !== 'setup';
     $('scores').hidden = p !== 'scores';
     $('powerups').hidden = p !== 'powerups';
+    $('controls').hidden = p !== 'controls';
+    $('howto').hidden = p !== 'howto';
     $('pause').hidden = p !== 'pause';
     $('over').hidden = p !== 'over';
   }
@@ -94,6 +97,7 @@
       return noiseBuf;
     };
     let total = 4;
+    duckMusic(8 * beat + 0.6);
     if (melody) total = Math.ceil(melody.reduce((s, m) => s + m[1], 0));
     for (let i = 0; i < total; i++) {
       const t = t0 + i * beat;
@@ -134,6 +138,102 @@
       });
     }
   }
+
+  /* ------------------------------------------------ background music + gulls
+     Light 80s "Miami" synth groove (112 BPM, A minor: Am – F – C – G, two bars each): soft kick, clap, hats,
+     off-beat saw bass, warm pad and a plucky arpeggio with echo. Scheduled ahead with a small look-ahead timer. */
+  const MUSIC_BPM = 112, M_STEP = 60 / MUSIC_BPM / 4;
+  const CHORDS = [
+    { root: 55.0, n: [220.0, 261.63, 329.63] },    // Am
+    { root: 43.65, n: [174.61, 220.0, 261.63] },   // F
+    { root: 65.41, n: [261.63, 329.63, 392.0] },   // C
+    { root: 49.0, n: [196.0, 246.94, 293.66] }     // G
+  ];
+  const music = { bus: null, delay: null, timer: null, next: 0, step: 0, noise: null };
+  const musicOn = () => !settings.muted && settings.music;
+  function musicGain() {
+    if (!music.bus || !ac) return;
+    music.bus.gain.setTargetAtTime(musicOn() ? 0.3 : 0, ac.currentTime, 0.08);
+  }
+  function noiseBuf(a) {
+    if (!music.noise) { music.noise = a.createBuffer(1, Math.floor(a.sampleRate * 0.25), a.sampleRate); const d = music.noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    return music.noise;
+  }
+  function mTone(a, t, f, dur, type, vol, opt) {
+    opt = opt || {};
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = f; if (opt.detune) o.detune.value = opt.detune;
+    let node = o;
+    if (opt.lp) { const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = opt.q || 1; lp.frequency.setValueAtTime(opt.lp, t); if (opt.lpEnd) lp.frequency.exponentialRampToValueAtTime(opt.lpEnd, t + dur); o.connect(lp); node = lp; }
+    const att = opt.attack || 0.005;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + att);
+    g.gain.setValueAtTime(vol, t + Math.max(att, dur * (opt.hold || 0.4))); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    node.connect(g); g.connect(music.bus); if (opt.echo) g.connect(music.delay);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function mNoise(a, t, dur, vol, hp, bp) {
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = noiseBuf(a); f.type = bp ? 'bandpass' : 'highpass'; f.frequency.value = bp || hp; if (bp) f.Q.value = 0.9;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(music.bus); s.start(t); s.stop(t + dur + 0.02);
+  }
+  function musicStep(a, step, t) {
+    const bar = Math.floor(step / 16), s = step % 16, ch = CHORDS[Math.floor(step / 32)];
+    // drums: soft kick on every beat, clap on 2 and 4, open hat off-beat, ghost hats
+    if (s % 4 === 0) { const k = a.createOscillator(), g = a.createGain(); k.type = 'sine'; k.frequency.setValueAtTime(130, t); k.frequency.exponentialRampToValueAtTime(45, t + 0.12); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); k.connect(g); g.connect(music.bus); k.start(t); k.stop(t + 0.22); }
+    if (s === 4 || s === 12) mNoise(a, t, 0.13, 0.18, 0, 1700);
+    if (s % 4 === 2) mNoise(a, t, 0.09, 0.07, 7500); else if (s % 2 === 1) mNoise(a, t, 0.03, 0.025, 8500);
+    // bass: syncopated 16ths, octave pops
+    if ([0, 3, 6, 8, 11, 14].includes(s)) mTone(a, t, ch.root * ([6, 14].includes(s) ? 2 : 1), M_STEP * 1.6, 'sawtooth', 0.3, { lp: 700, lpEnd: 220, q: 5 });
+    // warm pad, one chord every two bars
+    if (s === 0 && bar % 2 === 0) ch.n.forEach(f => { [-8, 8].forEach(d => mTone(a, t, f, M_STEP * 31, 'sawtooth', 0.04, { detune: d, lp: 1100, attack: 0.9, hold: 0.9 })); });
+    // arpeggio with echo (8th notes), octave up on odd bars
+    if (s % 2 === 0) {
+      const idx = [0, 1, 2, 1, 0, 2, 1, 2][(s / 2) % 8], f = ch.n[idx] * (bar % 2 ? 4 : 2);
+      mTone(a, t, f, M_STEP * 2.2, 'triangle', 0.14, { echo: true, hold: 0.2 });
+      mTone(a, t, f, M_STEP * 1.2, 'square', 0.035, { lp: 2400, echo: true, hold: 0.2 });
+    }
+  }
+  function musicTick() {
+    if (!ac) return;
+    if (!musicOn()) { music.next = ac.currentTime + 0.1; return; }
+    if (music.next < ac.currentTime - 0.2) music.next = ac.currentTime + 0.05;       // tab was throttled
+    while (music.next < ac.currentTime + 0.3) { musicStep(ac, music.step, music.next); music.next += M_STEP; music.step = (music.step + 1) % 128; }
+  }
+  function startMusic() {
+    const a = audio(); if (!a || music.timer) return;
+    music.bus = a.createGain(); music.bus.gain.value = musicOn() ? 0.3 : 0;
+    music.delay = a.createDelay(1); music.delay.delayTime.value = M_STEP * 3;                // dotted-8th echo
+    const fb = a.createGain(); fb.gain.value = 0.38; const wet = a.createGain(); wet.gain.value = 0.5;
+    music.delay.connect(fb); fb.connect(music.delay); music.delay.connect(wet); wet.connect(music.bus);
+    music.bus.connect(a.destination);
+    music.next = a.currentTime + 0.15; music.step = 0;
+    music.timer = setInterval(musicTick, 80);
+    scheduleGull();
+  }
+  function duckMusic(sec) {                                // let the power-up jingles stand out
+    if (!music.bus || !ac) return;
+    const t = ac.currentTime; music.bus.gain.setTargetAtTime(musicOn() ? 0.08 : 0, t, 0.05);
+    setTimeout(() => musicGain(), sec * 1000);
+  }
+  /* seagull screech every now and then (synthesised: pitch sweep + vibrato through a band-pass) */
+  function gull() {
+    if (!musicOn()) return;
+    const a = audio(); if (!a) return;
+    const n = 2 + Math.floor(Math.random() * 3), pitch = 0.9 + Math.random() * 0.25;
+    for (let i = 0; i < n; i++) {
+      const t = a.currentTime + 0.03 + i * (0.36 + Math.random() * 0.06), len = i === 0 ? 0.42 : 0.3, vol = 0.05 * (1 - i * 0.18);
+      const o = a.createOscillator(), bp = a.createBiquadFilter(), g = a.createGain(), lfo = a.createOscillator(), lg = a.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(1350 * pitch, t); o.frequency.linearRampToValueAtTime(2500 * pitch, t + 0.09); o.frequency.linearRampToValueAtTime(1650 * pitch, t + len);
+      lfo.frequency.value = 32; lg.gain.value = 70; lfo.connect(lg); lg.connect(o.frequency);
+      bp.type = 'bandpass'; bp.frequency.value = 2100 * pitch; bp.Q.value = 2.2;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(bp); bp.connect(g); g.connect(a.destination);
+      o.start(t); lfo.start(t); o.stop(t + len + 0.05); lfo.stop(t + len + 0.05);
+    }
+  }
+  function scheduleGull() { setTimeout(() => { gull(); scheduleGull(); }, 14000 + Math.random() * 18000); }
 
   function tone(freq, dur, type, vol, slide, delay) {
     if (settings.muted) return;
@@ -188,7 +288,7 @@
     'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'Numpad0']);
 
   addEventListener('keydown', e => {
-    audio();
+    audio(); startMusic();
     const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
     if (typing) {
       if (phase === 'setup' && e.key === 'Enter' && e.target.tagName === 'INPUT') beginMatch();
@@ -201,7 +301,9 @@
     }
     if (e.repeat) { keys.add(e.code); return; }
     keys.add(e.code);
-    if (e.code === 'KeyM') { settings.muted = !settings.muted; saveSettings(); }
+    if (e.code === 'KeyM') { settings.muted = !settings.muted; saveSettings(); musicGain(); }
+    if (e.code === 'KeyN') { settings.music = !settings.music; $('music').value = settings.music ? 'on' : 'off'; saveSettings(); musicGain(); }
+    if (e.code === 'Escape' && (phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto')) setPhase('menu');
     if (e.code === 'KeyF') {
       try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (err) { /* not allowed */ }
     }
@@ -214,6 +316,7 @@
       if (e.code === 'Digit3') openSetup('solo');
     }
   });
+  addEventListener('pointerdown', () => { audio(); startMusic(); });
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); if (phase === 'play') setPhase('pause'); });
   addEventListener('beforeunload', e => { if (phase === 'play' || phase === 'pause') { e.preventDefault(); e.returnValue = ''; } });
@@ -320,6 +423,11 @@
   }
   $('btnPowerups').onclick = () => { renderPowerups(); setPhase('powerups'); };
   $('btnPowerupsBack').onclick = () => setPhase('menu');
+  $('btnControls').onclick = () => setPhase('controls');
+  $('btnControlsBack').onclick = () => setPhase('menu');
+  $('btnHowto').onclick = () => setPhase('howto');
+  $('btnHowtoBack').onclick = () => setPhase('menu');
+  $('music').onchange = () => { settings.music = $('music').value === 'on'; saveSettings(); musicGain(); startMusic(); };
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
     const btn = $('btnScoresClear');
@@ -444,7 +552,7 @@
     for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
     g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
     drawBall(g.ball, g._ballRot);
-    if (phase !== 'menu' && phase !== 'scores' && phase !== 'powerups' && phase !== 'setup') drawHUD(g, t);
+    if (!MENU_PHASES.has(phase)) drawHUD(g, t);
   }
 
   /* ------------------------------------------------------------- main loop */
@@ -466,7 +574,7 @@
         game.step();
         game.blobs.forEach(Scene.jelly);
         for (const e of game.events) { playEvent(e); if (e.type === 'hit') Scene.poke(game.blobs[e.blob], e); if (e.type === 'win') showOver(); }
-      } else if (phase === 'menu' || phase === 'scores' || phase === 'powerups' || phase === 'setup') {
+      } else if (MENU_PHASES.has(phase)) {
         demo.step();
         demo.blobs.forEach(Scene.jelly);
         for (const e of demo.events) if (e.type === 'hit') Scene.poke(demo.blobs[e.blob], e);
