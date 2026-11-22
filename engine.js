@@ -429,7 +429,7 @@
         if (this.state === 'play' && ball.y + r >= gy) {
           if (towel) {
             ball.y = gy - r;
-            ball.vy = -Math.max(Math.abs(ball.vy) * 0.6, 6.8);
+            ball.vy = -Math.min(C.BALL_MAX_UP, Math.max(Math.abs(ball.vy) * 0.95, 9.8));   // springy towel: high bounce so the rally can go on
             ball.vx *= 0.92;
             this.emit('towel', {});
           } else {

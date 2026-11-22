@@ -92,8 +92,8 @@
       const d = beats * beat, f = 261.63 * Math.pow(2, n / 12), last = i === song.length - 1;
       const g = ac2.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.11, t + 0.02);
-      g.gain.setValueAtTime(0.11, t + d * 0.8);
+      g.gain.linearRampToValueAtTime(0.04, t + 0.02);
+      g.gain.setValueAtTime(0.04, t + d * 0.8);
       g.gain.linearRampToValueAtTime(0.0001, t + d);
       g.connect(ac2.destination);
       [['sawtooth', 0], ['square', 7]].forEach(([type, extra]) => {
@@ -104,6 +104,39 @@
       });
       t += d;
     });
+  }
+
+  /* Aura+10 jingle: a short four-on-the-floor techno beat (128 BPM, 4 beats): kick, off-beat hi-hat, acid bass. */
+  function techno() {
+    if (settings.muted) return;
+    const a = audio(); if (!a) return;
+    const t0 = a.currentTime + 0.02, beat = 60 / 128;
+    let noiseBuf = null;
+    const noise = () => {
+      if (!noiseBuf) { noiseBuf = a.createBuffer(1, Math.floor(a.sampleRate * 0.1), a.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+      return noiseBuf;
+    };
+    for (let i = 0; i < 4; i++) {
+      const t = t0 + i * beat;
+      // kick
+      const k = a.createOscillator(), kg = a.createGain();
+      k.type = 'sine'; k.frequency.setValueAtTime(160, t); k.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      kg.gain.setValueAtTime(0.22, t); kg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      k.connect(kg); kg.connect(a.destination); k.start(t); k.stop(t + 0.25);
+      // open hi-hat on the off-beat
+      const th = t + beat / 2, h = a.createBufferSource(), hf = a.createBiquadFilter(), hg = a.createGain();
+      h.buffer = noise(); hf.type = 'highpass'; hf.frequency.value = 7000;
+      hg.gain.setValueAtTime(0.07, th); hg.gain.exponentialRampToValueAtTime(0.001, th + 0.09);
+      h.connect(hf); hf.connect(hg); hg.connect(a.destination); h.start(th); h.stop(th + 0.1);
+      // acid bass stabs (two 16ths after the hat), filter sweep
+      [0.5, 0.75].forEach((off, j) => {
+        const tb = t + off * beat, bo = a.createOscillator(), bf = a.createBiquadFilter(), bg = a.createGain();
+        bo.type = 'sawtooth'; bo.frequency.value = [55, 82.4, 55, 65.4][(i + j) % 4];
+        bf.type = 'lowpass'; bf.Q.value = 9; bf.frequency.setValueAtTime(300, tb); bf.frequency.exponentialRampToValueAtTime(1800, tb + 0.06); bf.frequency.exponentialRampToValueAtTime(250, tb + 0.14);
+        bg.gain.setValueAtTime(0.09, tb); bg.gain.exponentialRampToValueAtTime(0.001, tb + 0.15);
+        bo.connect(bf); bf.connect(bg); bg.connect(a.destination); bo.start(tb); bo.stop(tb + 0.17);
+      });
+    }
   }
 
   function tone(freq, dur, type, vol, slide, delay) {
@@ -130,7 +163,7 @@
       case 'collect': tone(660, 0.1, 'triangle', 0.12); tone(990, 0.18, 'triangle', 0.12, 0, 0.08); break;
       case 'activate':
         if (e.item === 'alman') anthem();
-        else if (e.item === 'aura') { [784, 988, 1319, 1568].forEach((f, i) => tone(f, 0.18, 'triangle', 0.08, 0, i * 0.07)); }   // cool sparkle
+        else if (e.item === 'aura') techno();
         else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
         break;
       case 'point':
