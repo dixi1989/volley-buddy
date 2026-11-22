@@ -15,8 +15,8 @@
     SERVE_DELAY: 80, POINT_DELAY: 100,
     HIT_Y: 280,                       // height at which the AI wants to meet the ball
     // power-ups
-    PU_INTERVAL: 1800,                // every 30 s of rally time one power-up per player falls from the sky
-    PU_FALL: 1.7, PU_LAND_Y: 366, PU_R: 18, PU_TTL: 180, // fall speed px/frame, landing height, 3 s on the ground
+    PU_INTERVAL: 1800,                // every 30 s one power-up per player falls from the sky
+    PU_FALL: 2.6, PU_R: 18,           // fall speed px/frame (~3 s from top to below the ground), pickup radius
     PU_MAX_INV: 3,
     TOWEL_FRAMES: 900, TOWEL_H: 5,    // 15 s
     ALMAN_FRAMES: 600, ALMAN_MULT: 0.8 // 10 s, speed and jump height at 80 %
@@ -105,11 +105,11 @@
     constructor(blob, sim, levelName) {
       this.b = blob; this.sim = sim; this.p = LEVELS[levelName] || LEVELS.normal;
       this.err = 0; this.errTimer = 0; this.lag = null; this.lagTimer = 0;
-      this.wantId = -1; this.want = false;
+      this.wantMap = {};
     }
     wants(pu) {
-      if (this.wantId !== pu.id) { this.wantId = pu.id; this.want = this.sim.rng() < this.p.grab; }
-      return this.want;
+      if (!(pu.id in this.wantMap)) this.wantMap[pu.id] = this.sim.rng() < this.p.grab;   // decided once per item
+      return this.wantMap[pu.id];
     }
     update() {
       const sim = this.sim, b = this.b, p = this.p, ball = sim.ball, rng = sim.rng;
@@ -266,13 +266,13 @@
         let x = lo + this.rng() * (hi - lo);
         for (let k = 0; k < 12 && placed.some(px => Math.abs(px - x) < 80); k++) x = lo + this.rng() * (hi - lo);
         placed.push(x);
-        this.items.push({ id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x, y: -30, by: -30, landed: false, age: 0, ttl: C.PU_TTL, owner: bl.id });
+        this.items.push({ id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x, y: -30, by: -30, age: 0, owner: bl.id });
       }
       this.puTimer = C.PU_INTERVAL;
       this.emit('spawn', {});
     }
     updatePowerups() {
-      if (this.state !== 'play') return;
+      if (this.state === 'over') return;      // timers keep running in every phase of the match (serve, between points)
       for (let t = 0; t < 2; t++) {
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
         if (this.alman[t] > 0 && --this.alman[t] === 0) this.emit('almanEnd', { team: t });
@@ -281,13 +281,9 @@
       for (let i = this.items.length - 1; i >= 0; i--) {
         const pu = this.items[i];
         pu.age++;
-        if (!pu.landed) {
-          pu.y += C.PU_FALL;
-          if (pu.y >= C.PU_LAND_Y) { pu.y = C.PU_LAND_Y; pu.landed = true; pu.age = 0; }
-        } else if (--pu.ttl <= 0) {
-          this.items.splice(i, 1); this.emit('expire', {}); continue;
-        }
-        pu.by = pu.y + (pu.landed ? Math.sin(pu.age * 0.07) * 3 : 0);
+        pu.y += C.PU_FALL;                       // falls straight through; gone once it has sunk below the ground
+        if (pu.y > C.H + 40) { this.items.splice(i, 1); this.emit('expire', {}); continue; }
+        pu.by = pu.y;
         for (const b of this.blobs) {
           if (this.inv[b.team].length >= C.PU_MAX_INV) continue;
           if (Math.hypot(b.x - pu.x, b.y - pu.by) < C.BLOB_R + C.PU_R) {

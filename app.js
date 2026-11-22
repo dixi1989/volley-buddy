@@ -56,18 +56,31 @@
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
-  /* Alman Mode jingle: the first line of the German anthem ("Einigkeit und Recht und Freiheit"), deliberately off-key and wobbly. */
+  /* Alman Mode jingle: first line of the German anthem ("Einigkeit und Recht und Freiheit", Haydn) in a cheap-organ sound,
+     slightly out of tune and with a sagging last note. */
   function anthem() {
-    // [semitones above C4, beats]
-    const song = [[7, .5], [12, .75], [14, .25], [16, .5], [12, .5], [14, .5], [11, .5], [9, 1.5]];
-    let t = 0;
-    for (const [n, beats] of song) {
-      const f = 261.63 * Math.pow(2, (n + (Math.random() - 0.5) * 1.1) / 12);   // up to ~half a semitone out of tune
-      const d = beats * 0.3;
-      tone(f, d * 0.95, 'sawtooth', 0.07, (Math.random() - 0.7) * 60, t);       // lazy downward slides
-      tone(f * 1.01, d * 0.95, 'square', 0.03, 0, t);                            // detuned double for a cheap-organ sound
+    if (settings.muted) return;
+    const ac2 = audio(); if (!ac2) return;
+    // [semitones above C4 (G major: D4 = 2, G4 = 7 ...), beats]   Ei - nig - keit und Recht und Frei - heit
+    const song = [[2, .5], [7, 1.5], [9, .5], [11, 1], [9, 1], [12, 1], [11, 1], [9, 2.5]];
+    const beat = 0.27;
+    let t = ac2.currentTime + 0.02;
+    song.forEach(([n, beats], i) => {
+      const d = beats * beat, f = 261.63 * Math.pow(2, n / 12), last = i === song.length - 1;
+      const g = ac2.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.11, t + 0.02);
+      g.gain.setValueAtTime(0.11, t + d * 0.8);
+      g.gain.linearRampToValueAtTime(0.0001, t + d);
+      g.connect(ac2.destination);
+      [['sawtooth', 0], ['square', 7]].forEach(([type, extra]) => {
+        const o = ac2.createOscillator(); o.type = type; o.frequency.value = f;
+        o.detune.setValueAtTime((Math.random() - 0.5) * 50 + extra, t);          // up to +-25 cents off
+        if (last) o.detune.linearRampToValueAtTime(-260, t + d);                   // the final note sags
+        o.connect(g); o.start(t); o.stop(t + d + 0.05);
+      });
       t += d;
-    }
+    });
   }
 
   function tone(freq, dur, type, vol, slide, delay) {
@@ -323,17 +336,14 @@
       const fx = [];
       if (g.towels[tm] > 0) fx.push({ icon: 'towel', left: g.towels[tm], max: C.TOWEL_FRAMES, good: true });
       if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
-      const live = g.state === 'play';                 // timers only run while the ball is in play
       fx.forEach((f, i) => {
         const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
-        ctx.globalAlpha = live ? 1 : 0.5;
         ctx.fillStyle = f.good ? 'rgba(8,28,48,.6)' : 'rgba(90,10,10,.65)'; rr(x, y, 105, 17, 8); ctx.fill();
         Scene.drawItemIcon(ctx, f.icon, x + 11, y + 8.5, 15);
         ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, y + 6, 58, 5);
         ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#7fe3a0' : '#ffce00'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
         ctx.font = '700 10px system-ui'; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
-        ctx.fillText((live ? '' : '❚❚ ') + Math.ceil(f.left / 60) + 's', x + 100, y + 12);
-        ctx.globalAlpha = 1;
+        ctx.fillText(Math.ceil(f.left / 60) + 's', x + 100, y + 12);
       });
     }
     if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }

@@ -1,6 +1,6 @@
 /* Volley-Buddy service worker: app shell available offline.
  * Bump VERSION whenever any file changes. */
-const VERSION = 'vb-v9';
+const VERSION = 'vb-v10';
 const SHELL = [
   './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'app.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
