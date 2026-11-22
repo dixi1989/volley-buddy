@@ -15,8 +15,8 @@
     SERVE_DELAY: 80, POINT_DELAY: 100,
     HIT_Y: 280,                       // height at which the AI wants to meet the ball
     // power-ups
-    PU_MIN: 600, PU_MAX: 1200,        // spawn every 10-20 s of rally time
-    PU_Y: 172, PU_R: 18, PU_TTL: 600, // hover height, pickup radius, 10 s lifetime
+    PU_INTERVAL: 1800,                // every 30 s of rally time one power-up per player falls from the sky
+    PU_FALL: 1.7, PU_LAND_Y: 366, PU_R: 18, PU_TTL: 180, // fall speed px/frame, landing height, 3 s on the ground
     PU_MAX_INV: 3,
     TOWEL_FRAMES: 900, TOWEL_H: 5,    // 15 s
     ALMAN_FRAMES: 600, ALMAN_MULT: 0.8 // 10 s, speed and jump height at 80 %
@@ -47,8 +47,8 @@
 
   /* The two towel areas on a team's half of the court: [x0, x1] pairs. */
   function towelRects(team) {
-    const cs = team === 0 ? [107, 288] : [C.W - 107, C.W - 288];
-    return cs.map(c => [c - 60, c + 60]);
+    const c = team === 0 ? 200 : C.W - 200;          // one towel in the middle of the team's half
+    return [[c - 80, c + 80]];
   }
 
   /* Ball vs. net (rectangle). Returns true on collision. */
@@ -143,15 +143,20 @@
         if (isHitter) tx = pred.x - dir * off + this.err;
       }
 
-      // go for the power-up hovering above the net
+      // go for a falling power-up on our half
       let grab = false;
-      const pu = sim.powerup;
-      if (pu && pu.landed && sim.state === 'play' && !isHitter &&
-          sim.inv[b.team].length < C.PU_MAX_INV && this.wants(pu)) {
-        const pool = mine ? mates.filter(m => m !== sim['hit' + b.team]) : mates;
-        let best = null;
-        for (const m of pool) if (!best || Math.abs(m.x - C.NET_X) < Math.abs(best.x - C.NET_X)) best = m;
-        if (best === b) { grab = true; tx = C.NET_X - dir * (C.NET_HW + C.BLOB_R); }
+      if (sim.state === 'play' && sim.inv[b.team].length < C.PU_MAX_INV) {
+        let target = null;
+        for (const pu of sim.items) {
+          if (!this.wants(pu) || (pu.x < C.NET_X) !== (b.team === 0)) continue;
+          if (isHitter && !(pred.t > 100 && Math.abs(pu.x - b.x) < 120)) continue;
+          // the closest team mate goes for it
+          const pool = mates.filter(m => !isHitter ? m !== sim['hit' + b.team] || mates.length === 1 : true);
+          let best = null;
+          for (const m of pool) if (!best || Math.abs(m.x - pu.x) < Math.abs(best.x - pu.x)) best = m;
+          if (best === b && (!target || Math.abs(pu.x - b.x) < Math.abs(target.x - b.x))) target = pu;
+        }
+        if (target) { grab = true; tx = target.x; }
       }
 
       if (rng() < p.move) {
@@ -163,8 +168,6 @@
         const by = b.y - ball.y;                // > 0: ball is above the blob
         const near = bx > -6 && bx < 56 && by > 35 && by < 205 && ball.vy > -3;
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
-      } else if (grab && b.onGround && Math.abs(b.x - tx) < 14 && rng() < p.jump * 0.5) {
-        inp.jump = true;
       }
 
       // use a stored power-up
@@ -203,8 +206,8 @@
       this.winner = -1; this.message = ''; this.messageTimer = 0;
       this.pred = { x: 200, y: 280, t: 99 };
       // power-ups
-      this.powerup = null; this.puId = 0;
-      this.puTimer = this.randPuTime();
+      this.items = []; this.puId = 0;
+      this.puTimer = C.PU_INTERVAL;
       this.inv = [[], []];          // collected, not yet used (per team)
       this.towels = [0, 0];         // remaining frames of active Fluffy Towels (per team)
       this.alman = [0, 0];          // remaining frames of Alman Mode on each team (the team that is slowed down)
@@ -212,7 +215,6 @@
       this.startServe();
     }
 
-    randPuTime() { return C.PU_MIN + Math.floor(this.rng() * (C.PU_MAX - C.PU_MIN + 1)); }
     emit(type, data) { this.events.push(Object.assign({ type }, data)); }
     say(msg, frames) { this.message = msg; this.messageTimer = frames || 90; }
 
@@ -256,9 +258,17 @@
     }
 
     /* ---- power-ups ---- */
-    spawnPowerup() {
-      this.powerup = { id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x: C.NET_X, y: -30, by: -30, landed: false, age: 0, ttl: C.PU_TTL };
-      this.puTimer = this.randPuTime();      // next spawn in 10-20 s, whether or not this one is picked up
+    /* One power-up per player, all at the same moment, each with its own random type and position on the player's half. */
+    spawnPowerups() {
+      const placed = [];
+      for (const bl of this.blobs) {
+        const lo = bl.team === 0 ? 50 : C.NET_X + 50, hi = bl.team === 0 ? C.NET_X - 50 : C.W - 50;
+        let x = lo + this.rng() * (hi - lo);
+        for (let k = 0; k < 12 && placed.some(px => Math.abs(px - x) < 80); k++) x = lo + this.rng() * (hi - lo);
+        placed.push(x);
+        this.items.push({ id: ++this.puId, type: this.rng() < 0.5 ? 'towel' : 'alman', x, y: -30, by: -30, landed: false, age: 0, ttl: C.PU_TTL, owner: bl.id });
+      }
+      this.puTimer = C.PU_INTERVAL;
       this.emit('spawn', {});
     }
     updatePowerups() {
@@ -267,25 +277,26 @@
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
         if (this.alman[t] > 0 && --this.alman[t] === 0) this.emit('almanEnd', { team: t });
       }
-      const pu = this.powerup;
-      if (--this.puTimer <= 0 && !pu) this.spawnPowerup();
-      if (!pu) return;
-      pu.age++;
-      if (!pu.landed) {
-        pu.y += Math.min(3.5, (C.PU_Y - pu.y) * 0.08 + 0.6);
-        if (pu.y >= C.PU_Y - 1) { pu.y = C.PU_Y; pu.landed = true; pu.age = 0; }
-      } else if (--pu.ttl <= 0) {
-        this.powerup = null; this.emit('expire', {}); return;
-      }
-      pu.by = pu.y + (pu.landed ? Math.sin(pu.age * 0.07) * 6 : 0);
-      for (const b of this.blobs) {
-        if (this.inv[b.team].length >= C.PU_MAX_INV) continue;
-        if (Math.hypot(b.x - pu.x, b.y - pu.by) < C.BLOB_R + C.PU_R) {
-          this.inv[b.team].push(pu.type);
-          this.emit('collect', { team: b.team, blob: b.id, item: pu.type });
-          this.say(POWERUPS[pu.type].name + ' collected!', 70);
-          this.powerup = null;
-          return;
+      if (--this.puTimer <= 0) this.spawnPowerups();
+      for (let i = this.items.length - 1; i >= 0; i--) {
+        const pu = this.items[i];
+        pu.age++;
+        if (!pu.landed) {
+          pu.y += C.PU_FALL;
+          if (pu.y >= C.PU_LAND_Y) { pu.y = C.PU_LAND_Y; pu.landed = true; pu.age = 0; }
+        } else if (--pu.ttl <= 0) {
+          this.items.splice(i, 1); this.emit('expire', {}); continue;
+        }
+        pu.by = pu.y + (pu.landed ? Math.sin(pu.age * 0.07) * 3 : 0);
+        for (const b of this.blobs) {
+          if (this.inv[b.team].length >= C.PU_MAX_INV) continue;
+          if (Math.hypot(b.x - pu.x, b.y - pu.by) < C.BLOB_R + C.PU_R) {
+            this.inv[b.team].push(pu.type);
+            this.emit('collect', { team: b.team, blob: b.id, item: pu.type });
+            this.say(POWERUPS[pu.type].name + ' collected!', 70);
+            this.items.splice(i, 1);
+            break;
+          }
         }
       }
     }

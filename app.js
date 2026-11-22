@@ -56,6 +56,20 @@
     if (ac && ac.state === 'suspended') ac.resume();
     return ac;
   }
+  /* Alman Mode jingle: the first line of the German anthem ("Einigkeit und Recht und Freiheit"), deliberately off-key and wobbly. */
+  function anthem() {
+    // [semitones above C4, beats]
+    const song = [[7, .5], [12, .75], [14, .25], [16, .5], [12, .5], [14, .5], [11, .5], [9, 1.5]];
+    let t = 0;
+    for (const [n, beats] of song) {
+      const f = 261.63 * Math.pow(2, (n + (Math.random() - 0.5) * 1.1) / 12);   // up to ~half a semitone out of tune
+      const d = beats * 0.3;
+      tone(f, d * 0.95, 'sawtooth', 0.07, (Math.random() - 0.7) * 60, t);       // lazy downward slides
+      tone(f * 1.01, d * 0.95, 'square', 0.03, 0, t);                            // detuned double for a cheap-organ sound
+      t += d;
+    }
+  }
+
   function tone(freq, dur, type, vol, slide, delay) {
     if (settings.muted) return;
     const a = audio(); if (!a) return;
@@ -79,7 +93,7 @@
       case 'spawn': tone(880, 0.1, 'sine', 0.05); tone(1175, 0.14, 'sine', 0.05, 0, 0.08); break;
       case 'collect': tone(660, 0.1, 'triangle', 0.12); tone(990, 0.18, 'triangle', 0.12, 0, 0.08); break;
       case 'activate':
-        if (e.item === 'alman') { [0, 0.16, 0.32, 0.48].forEach((d, i) => tone(i % 2 ? 196 : 110, 0.14, 'square', 0.09, 0, d)); }   // oom-pah
+        if (e.item === 'alman') anthem();
         else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
         break;
       case 'point':
@@ -340,7 +354,7 @@
     if (!g) return;
     g._ballRot = g._ballRot || { rot: 0 };
     Scene.drawTowels(ctx, g, t);
-    if (g.powerup) Scene.drawPowerup(ctx, g.powerup, t);
+    for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
     g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
     drawBall(g.ball, g._ballRot);
     if (phase !== 'menu' && phase !== 'scores' && phase !== 'setup') drawHUD(g, t);

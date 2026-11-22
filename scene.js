@@ -406,7 +406,7 @@
 
   function drawPowerup(ctx, pu, t) {
     const x = pu.x, y = pu.by;
-    const fade = pu.landed && pu.ttl < 120 ? (Math.floor(t * 8) % 2 ? 0.35 : 1) : 1;
+    const fade = pu.landed && pu.ttl < 90 ? (Math.floor(t * 8) % 2 ? 0.35 : 1) : 1;
     ctx.save(); ctx.globalAlpha = fade;
     const pulse = 0.85 + 0.15 * sin(t * 5);
     const gl = ctx.createRadialGradient(x, y, 4, x, y, 40 * pulse);
