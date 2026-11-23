@@ -217,13 +217,13 @@
     },
     lasso(ctx, t, ext) {   // coiled rope with a spinning loop
       px(ctx, -6, -2, 14, 4, '#b98a4a');
-      const L = 20 + ext * 22, w = 12 + ext * 6, sp = Math.floor(t * 18) % 4;
+      const L = 34 + ext * 80, w = 16 + ext * 14, sp = Math.floor(t * 18) % 4;
       ctx.fillStyle = '#d9b36a';
       for (let i = 0; i < 24; i++) {
         const a = (i / 24) * TAU + sp * 0.4, x = 8 + L * 0.5 + cos(a) * L * 0.5, y = sin(a) * w * 0.5;
         ctx.fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, 4, 4);
       }
-      px(ctx, 8, -1, L * 0.35, 2, '#b98a4a');
+      px(ctx, 8, -1, L * 0.5, 2, '#b98a4a');
     }
   };
   function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }

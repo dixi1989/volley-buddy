@@ -23,7 +23,7 @@
     AURA_FRAMES: 600, AURA_MULT: 1.3,   // 10 s, hit box 30 % larger
     // Volley Fight: weapons
     WEAPON_CD: 96, WEAPON_SWING: 14,    // cooldown 1.6 s, swing lasts 14 frames
-    WEAPON_REACH: 58, WEAPON_V: 16.5,   // reach beyond the body, ball speed after a weapon hit (classic hits: max 13)
+    DIP_G: 0.2,                         // extra gravity on a ball hit by the birch rod
     SHOT_R: 7,                          // ranged weapons: projectile radius (speed, cooldown ... see RANGED)
     SHOT_BOOST: 1.38, SHOT_SLOW: 0.55   // ball speed factor: bolt hits a ball flying to the opponents (boost) / toward the shooter's side (slow)
   };
@@ -55,7 +55,15 @@
   };
   const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
   const kindOf = style => WEAPON_KIND[weaponOf(style)];
-  const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : C.WEAPON_CD);
+  /* Melee weapons: reach beyond the body, ball speed after the hit, direction (fwd = toward the opponents, up < 0 = upward, aimW = how much the
+   * direction of the hit relative to the body counts), cooldown in frames, optional dip = frames of extra gravity. */
+  const MELEE = {
+    sword:  { reach: 62,  v: 16.5, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 96 },               // all-rounder
+    katana: { reach: 58,  v: 18,   fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 78 },               // fastest, flat, recharges quickly
+    lasso:  { reach: 112, v: 13.5, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 126 },              // long reach, high lob, slow recharge
+    rod:    { reach: 52,  v: 15,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
+  };
+  const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : MELEE[weaponOf(style)].cd);
   /* Direction of a ranged shot: forward and a bit upward from the ground; in the air it follows the jump (rising: up, falling: down). */
   function shotAngle(b) {
     const a = b.onGround ? -0.32 : Math.max(-0.25, Math.min(0.35, b.vy * 0.03));
@@ -223,7 +231,7 @@
       // Volley Fight, melee weapon: swing when the ball is in reach
       else if (sim.fight && kindOf(b.style) === 'melee' && b.cd === 0 && b.swing === 0 && (sim.state === 'play' || sim.state === 'serve') &&
           !(sim.lastTouchTeam === b.team && sim.touches[b.team] >= C.MAX_TOUCHES) &&
-          Math.hypot(ball.x - b.x, ball.y - b.y) < C.BLOB_R + C.BALL_R + C.WEAPON_REACH - 8 &&
+          Math.hypot(ball.x - b.x, ball.y - b.y) < C.BLOB_R + C.BALL_R + MELEE[weaponOf(b.style)].reach - 8 &&
           (sim.state === 'play' || sim.timer <= 45) && rng() < p.wpn) inp.special = true;
 
       // use a stored power-up
@@ -254,7 +262,7 @@
           this.blobs.push(b);
         });
       });
-      this.ball = { x: 200, y: 190, vx: 0, vy: 0, spin: 0 };
+      this.ball = { x: 200, y: 190, vx: 0, vy: 0, spin: 0, dip: 0 };
       this.score = [0, 0];
       this.serving = 0;
       this.touches = [0, 0];
@@ -282,7 +290,7 @@
 
     startServe() {
       const b = this.ball;
-      b.x = this.serving === 0 ? 200 : 600; b.y = 190; b.vx = 0; b.vy = 0;
+      b.x = this.serving === 0 ? 200 : 600; b.y = 190; b.vx = 0; b.vy = 0; b.dip = 0;
       this.touches = [0, 0]; this.lastTouchTeam = -1; this.rallyHits = 0;
       this.blobs.forEach(o => o.reset());
       this.hit0 = this.hit1 = null;
@@ -440,6 +448,7 @@
     registerTouch(b, type, power) {
       b.touchCd = 8;
       this.emit(type, { blob: b.id, power });
+      this.ball.dip = 0;
       if (this.lastTouchTeam !== b.team) { this.touches[b.team] = 0; this.touches[1 - b.team] = 0; }
       this.lastTouchTeam = b.team;
       this.touches[b.team]++;
@@ -496,24 +505,26 @@
         if (pressed && live && b.cd === 0 && b.swing === 0) this.fire(b);
         return;
       }
+      const M = MELEE[weaponOf(b.style)];
       if (pressed && live && b.cd === 0 && b.swing === 0) {
-        b.swing = C.WEAPON_SWING; b.cd = C.WEAPON_CD; b.swung = false;
+        b.swing = C.WEAPON_SWING; b.cd = M.cd; b.swung = false;
         this.emit('swing', { blob: b.id });
       }
       // auto-aim: while idle the weapon rests forward-up, while swinging it points at the ball
       const dx = ball.x - b.x, dy = ball.y - b.y, dist = Math.hypot(dx, dy);
       if (b.swing > 0 && dist < 260) b.aim = Math.atan2(dy, dx);
       else if (b.swing > 0) b.aim = dir === 1 ? -0.5 : Math.PI + 0.5;
-      if (b.swing > 0 && !b.swung && live && dist <= C.BLOB_R + C.BALL_R + C.WEAPON_REACH) {
+      if (b.swing > 0 && !b.swung && live && dist <= C.BLOB_R + C.BALL_R + M.reach) {
         b.swung = true;
         const ux = dx / Math.max(dist, 0.001), uy = dy / Math.max(dist, 0.001);
-        let vx = dir * 0.85 + ux * 0.25, vy = uy * 0.6 - 0.25;
+        let vx = dir * M.fwd + ux * 0.25, vy = uy * M.aimW + M.up;
         const n = Math.hypot(vx, vy);
-        vx = vx / n * C.WEAPON_V; vy = vy / n * C.WEAPON_V;
+        vx = vx / n * M.v; vy = vy / n * M.v;
         if (vy < -C.BALL_MAX_UP) vy = -C.BALL_MAX_UP;
         ball.vx = vx; ball.vy = vy; ball.spin = clamp(vx * 0.05, -0.6, 0.6);
         if (this.state === 'serve') { this.state = 'play'; this.say('', 0); }
         this.registerTouch(b, 'weapon', 1);
+        ball.dip = M.dip || 0;                        // (registerTouch cleared it)
       }
     }
 
@@ -543,7 +554,8 @@
       if (this.state === 'over') { this.stepBallDead(); return; }
 
       // move the ball
-      ball.vy += C.BALL_G;
+      ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
+      if (ball.dip > 0) ball.dip--;
       const sp0 = Math.hypot(ball.vx, ball.vy);
       if (sp0 > 18) { ball.vx *= 18 / sp0; ball.vy *= 18 / sp0; }
       ball.x += ball.vx; ball.y += ball.vy;
@@ -589,7 +601,7 @@
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, MELEE, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

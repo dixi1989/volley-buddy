@@ -47,6 +47,15 @@
   const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'ninja' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'cowboy' } }, store.get('vb_looks', {}));
   ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = k === 'p1' ? 'ninja' : 'cowboy'; });
   /* name / figure / colour picker used by the setup screen and the online lobby */
+  /* Ability texts shown in the hero select (keep in sync with MELEE / RANGED in engine.js) */
+  const WEAPON_INFO = {
+    sword: ['Sword', 'All-rounder: solid smash, medium reach.'],
+    katana: ['Katana', 'Fastest, flat smash and a short recharge.'],
+    lasso: ['Lasso', 'Very long reach: lobs the ball high over the net. Slow recharge.'],
+    rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
+    shotgun: ['Shotgun', '3 pellets, short range, slow reload. No auto-aim.'],
+    revolver: ['Revolver', '1 bullet, fires again quickly. No auto-aim.']
+  };
   const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
   function drawTile(c, spec) {
@@ -71,7 +80,7 @@
       const cv = document.createElement('canvas'); cv.width = cv.height = 36;
       drawTile(cv, { style: id, gender: me.gender, color: me.color });
       const cap = document.createElement('span'); cap.textContent = figName(id, me.gender);
-      const kind = VB.kindOf(id), cat = document.createElement('small'); cat.className = 'cat ' + kind; cat.textContent = kind === 'ranged' ? '🔫 Ranged' : '⚔ Melee';
+      const kind = VB.kindOf(id), cat = document.createElement('small'); cat.className = 'cat ' + kind; cat.textContent = kind === 'ranged' ? '🔫' : '⚔'; cat.title = kind === 'ranged' ? 'Ranged weapon' : 'Melee weapon';
       b.append(cv, cap, cat);
       b.onclick = () => { me.style = id; store.set('vb_looks', looks); redo(); };
       tiles.appendChild(b);
@@ -90,7 +99,16 @@
       b.onclick = () => { if (oth && oth.color === col) return; me.color = col; store.set('vb_looks', looks); redo(); };
       r2.appendChild(b);
     });
-    box.append(tiles, r2);
+    // ability description of the (focused or selected) hero
+    const desc = document.createElement('div'); desc.className = 'hdesc';
+    const showDesc = id => { const w = FIGURES[id].weapon, i = WEAPON_INFO[w], ranged = VB.kindOf(id) === 'ranged'; desc.innerHTML = '<b>' + (ranged ? '🔫' : '⚔') + ' ' + i[0] + '</b> <i>' + (ranged ? 'Ranged' : 'Melee') + '</i> – ' + i[1]; };
+    showDesc(me.style);
+    [...tiles.children].forEach(t => {
+      const id = t.dataset.k.split(':')[2];
+      ['mouseenter', 'focus'].forEach(ev => t.addEventListener(ev, () => showDesc(id)));
+      ['mouseleave', 'blur'].forEach(ev => t.addEventListener(ev, () => showDesc(me.style)));
+    });
+    box.append(tiles, desc, r2);
   }
   function renderLooks() {
     const two = setupMode !== 'solo';

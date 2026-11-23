@@ -132,3 +132,24 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 .look .tile canvas{width:60px;height:60px}
 .look .tile{font-size:11px}
 #online .look .tile canvas,#online canvas.prev{width:44px;height:44px}
+
+.hdesc{margin:6px 0 2px;padding:4px 8px;min-height:2.5em;font-size:12px;line-height:1.25;color:#e6dcff;background:#140a33;border-left:3px solid #ffd23f;border-radius:3px;text-align:left;letter-spacing:0}
+.hdesc i{color:#9be9ff;font-style:normal;font-size:11px}
+#online .hdesc{margin:4px 0 2px;min-height:2.3em}
+
+.look .tile{position:relative}
+.look .tile .cat{position:absolute;top:4px;right:4px;font-size:12px;line-height:1;background:#140a33cc;border-radius:3px;padding:1px 2px;color:#fff}
+.look .tile span{white-space:nowrap;font-size:11px}
+.look .tile canvas{width:54px;height:54px}
+#setupPanel h2{margin:0 0 2px}
+#setupPanel .fields{margin:4px 0}
+#setupPanel .row{margin:4px 0}
+#online .look .tile canvas,#online canvas.prev{width:44px;height:44px}
+#setupPanel .hdesc{margin:4px 0 2px;min-height:2.4em;padding:3px 8px}
+#online h2{font-size:22px;margin:0}
+#online .panel{padding:8px 14px}
+#online .pbanner{padding:3px 12px}
+#online .pname{margin:4px 0}
+#online .hdesc{min-height:2.4em;padding:3px 8px;margin:3px 0 2px}
+#online .lrow{margin-top:3px}
+#online .pbanner{display:none}
