@@ -418,8 +418,8 @@
 
   /* --------------------------------------------------------------- input */
   const MAP = {
-    P1: { left: ['KeyA', 'TouchLeft'], right: ['KeyD', 'TouchRight'], jump: ['KeyW', 'TouchJump'], special: ['ControlLeft', 'ShiftLeft', 'TouchSpecial'] },
-    P2: { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp'], special: ['ControlRight', 'ShiftRight', 'Numpad0'] }
+    P1: { left: ['KeyA', 'TouchLeft', 'PadLeft'], right: ['KeyD', 'TouchRight', 'PadRight'], jump: ['KeyW', 'TouchJump', 'PadJump'], special: ['ControlLeft', 'ShiftLeft', 'TouchSpecial', 'PadSpecial'] },
+    P2: { left: ['ArrowLeft', 'Pad2Left'], right: ['ArrowRight', 'Pad2Right'], jump: ['ArrowUp', 'Pad2Jump'], special: ['ControlRight', 'ShiftRight', 'Numpad0', 'Pad2Special'] }
   };
   const any = arr => arr.some(c => keys.has(c));
   const read = m => ({ left: any(m.left), right: any(m.right), jump: any(m.jump), special: any(m.special) });
@@ -433,6 +433,7 @@
     'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'Numpad0']);
 
   addEventListener('keydown', e => {
+    usingPad = false;
     audio(); startMusic();
     if (/^Arrow/.test(e.code) && NAV_PHASES.has(phase)) {
       const tag = e.target && e.target.tagName, horiz = e.code === 'ArrowLeft' || e.code === 'ArrowRight';
@@ -687,7 +688,7 @@
     if (g.fight && g.frames < 480 && g.mode !== 'duel') {
       const me = g.mode === 'online' ? g.blobs[g.localTeam] : g.blobs.find(b => b.controller === 'human');
       if (me) {
-        const key = touchMode ? 'the WEAPON button' : (g.mode === 'online' || g.mode === 'solo' || g.mode === 'team' ? 'Ctrl' : 'Ctrl');
+        const key = usingPad ? 'RT' : touchMode ? 'the WEAPON button' : (g.mode === 'online' || g.mode === 'solo' || g.mode === 'team' ? 'Ctrl' : 'Ctrl');
         const txt = VB.kindOf(me.style) === 'ranged' ? 'Hold ' + key + ' to aim – release to fire' : 'Press ' + key + ' to swing your weapon at the ball';
         ctx.globalAlpha = Math.min(1, (480 - g.frames) / 60);
         ctx.font = '700 16px ' + FONT; ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4;
@@ -947,7 +948,66 @@
   }
   newDemo();
 
+  /* ------------------------------------------------------------ gamepad */
+  /* Standard layout: A = jump / select, B = back, left stick or D-pad = move, RT (or RB) = power-up / weapon, Start = pause.
+   * Controller 1 plays Player 1 (the same keys as WASD + Ctrl), controller 2 plays Player 2. In the menus every controller navigates.
+   * Browsers only list a controller after a button was pressed on it once. */
+  const PAD = { jump: [0], special: [7, 5], left: [14], right: [15], up: [12], down: [13], ok: 0, back: 1, start: 9, dead: 0.45 };
+  const PAD_CODES = ['PadLeft', 'PadRight', 'PadJump', 'PadSpecial', 'Pad2Left', 'Pad2Right', 'Pad2Jump', 'Pad2Special'];
+  let usingPad = false, padSig = '', padPrev = { ok: false, back: false, start: false }, padDir = {};
+  function padStatus(list) {
+    const sig = list.map(g => g.id).join('|');
+    if (sig === padSig) return;
+    padSig = sig;
+    const short = id => id.replace(/\s*\(.*$/, '').replace(/\s*Vendor:.*$/i, '').trim().slice(0, 40) || 'Controller';
+    const txt = list.length ? '🎮 ' + (list.length > 1 ? list.length + ' controllers' : short(list[0].id)) + ' connected' : '';
+    const b = $('padBadge'); b.textContent = txt; b.hidden = !list.length;
+    const st = $('padState');
+    if (list.length) { st.textContent = '– ' + txt.slice(3); st.className = 'padstate on'; }
+    else { st.textContent = '– no controller found (press any button on it)'; st.className = 'padstate off'; }
+  }
+  function pollPads() {
+    const all = navigator.getGamepads ? navigator.getGamepads() : [];
+    const list = [...all].filter(g => g && g.connected);
+    padStatus(list);
+    PAD_CODES.forEach(c => keys.delete(c));
+    if (!list.length) return;
+    const btn = (g, n) => !!(g.buttons[n] && (g.buttons[n].pressed || g.buttons[n].value > 0.5));
+    const anyBtn = (g, arr) => arr.some(n => btn(g, n));
+    const now = performance.now();
+    const dirs = { left: false, right: false, up: false, down: false }, cur = { ok: false, back: false, start: false };
+    list.forEach((g, i) => {
+      const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
+      const left = ax < -PAD.dead || anyBtn(g, PAD.left), right = ax > PAD.dead || anyBtn(g, PAD.right);
+      const jump = anyBtn(g, PAD.jump), special = anyBtn(g, PAD.special);
+      if (phase === 'play' && i < 2) {
+        const p = i === 0 ? 'Pad' : 'Pad2';
+        if (left) keys.add(p + 'Left'); if (right) keys.add(p + 'Right'); if (jump) keys.add(p + 'Jump'); if (special) keys.add(p + 'Special');
+      }
+      if (left) dirs.left = true; if (right) dirs.right = true;
+      if (ay < -PAD.dead || anyBtn(g, PAD.up)) dirs.up = true;
+      if (ay > PAD.dead || anyBtn(g, PAD.down)) dirs.down = true;
+      if (btn(g, PAD.ok)) cur.ok = true; if (btn(g, PAD.back)) cur.back = true; if (btn(g, PAD.start)) cur.start = true;
+      if (left || right || jump || special || ay < -PAD.dead || ay > PAD.dead) usingPad = true;
+    });
+    // menus: directions repeat while held, A / B / Start act once per press
+    if (NAV_PHASES.has(phase)) {
+      for (const d of ['up', 'down', 'left', 'right']) {
+        if (!dirs[d]) { padDir[d] = 0; continue; }
+        if (!padDir[d]) { padDir[d] = now + 380; uiAction(d); }
+        else if (now >= padDir[d]) { padDir[d] = now + 130; uiAction(d); }
+      }
+      if (cur.ok && !padPrev.ok) uiAction('ok');
+      if (cur.back && !padPrev.back) uiAction('back');
+    } else padDir = {};
+    if (cur.start && !padPrev.start) { if (phase === 'play') openPause(); else if (phase === 'pause') setPhase('play'); }
+    padPrev = cur;
+  }
+  addEventListener('gamepadconnected', () => { padSig = ''; });
+  addEventListener('gamepaddisconnected', () => { padSig = ''; });
+
   function frame(now) {
+    pollPads();
     acc += Math.min(100, now - last); last = now;
     while (acc >= STEP) {
       acc -= STEP;

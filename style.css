@@ -29,6 +29,10 @@ label{font-size:14px;color:#d9ccff;display:flex;gap:8px;align-items:center}
 select,input{font:inherit;padding:6px 8px;border-radius:4px;border:1px solid #69cbdc88;background:#140a33;color:#fff}
 input{width:70%;text-align:center;font-size:18px}
 .keys{margin-top:10px;font-size:clamp(11px,1.7vw,13px);color:#e3d9ff;text-align:left;display:grid;gap:4px;background:#140a3399;border-left:3px solid #ee1a8c;border-radius:4px;padding:8px 10px}
+.padstatus{margin:2px 0 0;font-size:13px;color:#8dffb8;letter-spacing:.5px}
+.padstate{font-weight:700}
+.padstate.on{color:#8dffb8}
+.padstate.off{color:#b6a5ee}
 .keys .small{color:#b6a5ee;font-size:clamp(10px,1.5vw,12px)}
 kbd{background:#69cbdc;color:#1a0a45;border-radius:3px;padding:1px 6px;margin:0 2px;font:700 12px ui-monospace,monospace;box-shadow:2px 2px 0 #ee1a8c}
 ol{text-align:left;margin:8px auto;padding-left:34px;max-width:480px;font-size:clamp(13px,2vw,16px)}
