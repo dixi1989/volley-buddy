@@ -202,15 +202,22 @@
     const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
     const horiz = code === 'left' || code === 'right', sgn = (code === 'left' || code === 'up') ? -1 : 1;
     // nearest control in that direction; a control that overlaps the current one on the other axis (same row / column) is strongly preferred
-    let best = null, bd = Infinity;
-    for (const e of els) {
-      if (e === cur) continue;
-      const r = e.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
-      const main = (horiz ? dx : dy) * sgn;
-      if (main < 4) continue;
-      const gap = horiz ? Math.max(0, Math.max(r.top, cr.top) - Math.min(r.bottom, cr.bottom)) : Math.max(0, Math.max(r.left, cr.left) - Math.min(r.right, cr.right));
-      const d = main + gap * 8;
-      if (d < bd) { bd = d; best = e; }
+    // 1st pass: only controls that lie completely beyond the current one in that direction (a button below never counts as "to the right");
+    // 2nd pass (up / down only, nothing there): any control whose centre is further in that direction
+    let best = null;
+    for (const strict of horiz ? [true] : [true, false]) {   // sideways: stay put at the end of a row instead of jumping to another row
+      let bd = Infinity;
+      for (const e of els) {
+        if (e === cur) continue;
+        const r = e.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+        const main = (horiz ? dx : dy) * sgn;
+        if (main < 4) continue;
+        if (strict && !(horiz ? (sgn > 0 ? r.left >= cr.right - 2 : r.right <= cr.left + 2) : (sgn > 0 ? r.top >= cr.bottom - 2 : r.bottom <= cr.top + 2))) continue;
+        const gap = horiz ? Math.max(0, Math.max(r.top, cr.top) - Math.min(r.bottom, cr.bottom)) : Math.max(0, Math.max(r.left, cr.left) - Math.min(r.right, cr.right));
+        const d = main + gap * 4;
+        if (d < bd) { bd = d; best = e; }
+      }
+      if (best) break;
     }
     if (best) best.focus();
   }
