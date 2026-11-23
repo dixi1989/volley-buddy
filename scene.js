@@ -40,13 +40,14 @@
   const OUT = '#2a1740';
   const SKIN = { m: ['#d99a63', '#b57545'], f: ['#f1bf98', '#d4946b'] };
   const HAIR = { m: ['#4a2d18', '#2e1a0d'], f: ['#e6b035', '#b8821c'] };
+  const METAL = ['#b3bccb', '#7f8a9e'];            // robot plating
   const NH = '#232b4a', NH2 = '#151a30';          // ninja cloth
   const WH = '#f6f6fa', WH2 = '#cfcfdd';          // santa beard / hair
   const RED = '#d7263d', RED2 = '#a01a2c';
 
   function drawPerson(ctx, b, ball, t) {
     const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f', v = b.style;
-    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer';
+    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'robot';
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
@@ -55,7 +56,7 @@
     const moving = Math.abs(b.vx) > 0.1, air = !b.onGround;
     const ph = Math.floor(t * 9 + b.id) % 2;                          // walk cycle
     const cy = j.sq > 0.16 ? 2 : (j.sq < -0.14 ? -2 : 0);              // crouch on landing, stretch on take-off
-    const sk = SKIN[fem ? 'f' : 'm'], hr = HAIR[fem ? 'f' : 'm'], col = b.color;
+    const sk = robot ? METAL : SKIN[fem ? 'f' : 'm'], hr = HAIR[fem ? 'f' : 'm'], col = b.color;
     const dark = shade(col, -0.38), light = shade(col, 0.4);
     ctx.save(); ctx.translate(gx, gy);
     if (b.aura) {                                                      // Aura+10: glowing ring showing the enlarged hit box
@@ -104,6 +105,16 @@
       const w = Math.floor(sin(t * 6 + b.id) * 1.5) * 2;
       part(12, -24 + cy, 4, 4, col, true); part(16, -22 + cy + w, 6, 4, col, true); part(20, -20 + cy + w * 2, 6, 4, dark, true);
       if (fem) { part(-18, -22 + cy, 6, 4, col, true); part(-18, -18 + cy, 4, 12, NH, true); }
+    } else if (robot) {
+      // metal head: dark visor with glowing LED eyes that follow the ball, antenna, mouth grille
+      part(-12, -26 + cy, 24, 4, '#d4dbe8', false);
+      part(-10, -18 + cy, 20, 8, '#10151f', true);
+      [-8, 2].forEach(x => { part(x + (ox - 1) * 2, -16 + cy + (oy ? 1 : 0), 6, 4, '#4cf0ff', false); part(x + (ox - 1) * 2 + 2, -16 + cy, 2, 2, '#e6ffff', false); });
+      part(-6, -6 + cy, 12, 2, '#4a5468', false); part(-4, -6 + cy, 2, 2, '#aab6c8', false); part(0, -6 + cy, 2, 2, '#aab6c8', false);
+      part(-2, -34 + cy, 4, 8, METAL[1], true); part(-4, -38 + cy, 8, 4, '#ff3b5c', true);
+      part(-14, -16 + cy, 2, 8, METAL[1], false); part(12, -16 + cy, 2, 8, METAL[1], false);            // ear bolts
+      if (fem) { part(-12, -30 + cy, 8, 6, col, true); part(-10, -28 + cy, 4, 2, light, false); }
+      part(-8, 2 + cy, 16, 2, METAL[1], false); part(-8, 6 + cy, 2, 2, '#4cf0ff', false); part(6, 6 + cy, 2, 2, '#ff3b5c', false);   // chest panel
     } else {
       // hair: short for him, long for her; Santa / Mrs. Claus have white hair under the hat
       const h0 = santa ? WH : hr[0], h1 = santa ? WH2 : hr[1];
@@ -166,7 +177,7 @@
     ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
     fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
     // Alman Mode: bucket hat with little German flags (sits on top of whatever the figure wears)
-    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : adv ? -38 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
+    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : adv ? -38 : robot ? -26 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
     if (b.fight) drawWeapon(ctx, b, t, cy);
     ctx.restore();
   }
@@ -186,6 +197,11 @@
       px(ctx, 8, -3, 38, 3, '#a8763f'); px(ctx, 8, 0, 36, 3, '#7a4f2a');
       px(ctx, 40, -8, 10, 2, '#a8763f'); px(ctx, 44, -4, 12, 2, '#7a4f2a'); px(ctx, 44, 2, 12, 2, '#a8763f'); px(ctx, 40, 6, 10, 2, '#7a4f2a');
     },
+    blaster(ctx, t, ext) {  // ray gun
+      px(ctx, -6, -2, 8, 10, '#3d4658'); px(ctx, -6, -4, 18, 8, '#5b6578'); px(ctx, 12, -3, 14, 6, '#aeb8c8'); px(ctx, 12, -1, 14, 2, '#e6edf7');
+      px(ctx, 26, -4, 4, 8, '#4cf0ff'); px(ctx, 2, -6, 6, 2, '#ff3b5c');
+      if (ext > 0) { px(ctx, 30, -6, 8, 12, '#e6ffff'); px(ctx, 36, -3, 8, 6, '#4cf0ff'); }
+    },
     lasso(ctx, t, ext) {   // coiled rope with a spinning loop
       px(ctx, -6, -2, 14, 4, '#b98a4a');
       const L = 20 + ext * 22, w = 12 + ext * 6, sp = Math.floor(t * 18) % 4;
@@ -200,19 +216,32 @@
   function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
 
   function drawWeapon(ctx, b, t, cy) {
-    const dir = b.team === 0 ? 1 : -1, kind = VB.FIGURES[b.style].weapon, SW = C.WEAPON_SWING;
+    const dir = b.team === 0 ? 1 : -1, kind = VB.FIGURES[b.style].weapon, SW = C.WEAPON_SWING, ranged = VB.kindOf(b.style) === 'ranged';
     const p = b.swing > 0 ? 1 - b.swing / SW : -1;                      // swing progress 0..1, -1 = idle
-    const idle = dir === 1 ? -1.15 : Math.PI + 1.15;
-    const ang = p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir;
+    const idle = ranged ? (dir === 1 ? -0.35 : Math.PI + 0.35) : (dir === 1 ? -1.15 : Math.PI + 1.15);
+    const ang = ranged ? (b.swing > 0 ? (b.aim || 0) : idle) : (p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir);
     ctx.save(); ctx.translate(dir * 14, 4 + cy);
-    if (p >= 0) {                                                       // slash trail
+    if (p >= 0 && !ranged) {                                                       // slash trail
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(0, 0);
       ctx.arc(0, 0, 58, (b.aim || 0) - 1.1 * dir, ang, dir < 0); ctx.closePath(); ctx.fill();
     }
     ctx.rotate(ang); ctx.scale(1, dir === -1 ? -1 : 1);
     ctx.imageSmoothingEnabled = false;
-    WEAPONS[kind](ctx, t, p < 0 ? 0 : Math.sin(p * Math.PI));
+    WEAPONS[kind](ctx, t, ranged ? (b.swing > 6 ? 1 : 0) : (p < 0 ? 0 : Math.sin(p * Math.PI)));
     ctx.restore();
+  }
+
+  /* Bolts of ranged weapons */
+  function drawShots(ctx, shots, t) {
+    for (const s of shots) {
+      const a = Math.atan2(s.vy, s.vx);
+      ctx.save(); ctx.translate(Math.round(s.x), Math.round(s.y)); ctx.rotate(a);
+      ctx.fillStyle = 'rgba(76,240,255,0.25)'; ctx.fillRect(-34, -3, 30, 6);
+      ctx.fillStyle = 'rgba(76,240,255,0.5)'; ctx.fillRect(-20, -2, 18, 4);
+      ctx.fillStyle = '#4cf0ff'; ctx.fillRect(-6, -4, 14, 8);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(-2, -2, 10, 4);
+      ctx.restore();
+    }
   }
 
   function drawLabel(ctx, b) {
@@ -221,7 +250,7 @@
     ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.strokeText(b.label, b.x, ly, 96);
     ctx.fillStyle = 'rgba(30,12,60,.95)'; ctx.fillText(b.label, b.x, ly, 96);
     if (b.fight && b.cd > 0) {                                           // weapon recharge bar
-      const w = 34, f = 1 - b.cd / C.WEAPON_CD;
+      const w = 34, f = 1 - b.cd / (VB.kindOf(b.style) === 'ranged' ? C.SHOT_CD : C.WEAPON_CD);
       ctx.fillStyle = 'rgba(30,12,60,.8)'; ctx.fillRect(b.x - w / 2 - 1, ly + 4, w + 2, 6);
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(b.x - w / 2, ly + 5, w * f, 4);
     }
@@ -547,5 +576,5 @@
   }
   const C_TOWEL = C.TOWEL_FRAMES;
 
-  root.Scene = { drawBackground, drawBlob, drawLabel, preview, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
+  root.Scene = { drawBackground, drawBlob, drawLabel, drawShots, preview, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
 })(typeof self !== 'undefined' ? self : this);

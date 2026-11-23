@@ -104,7 +104,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .pname{display:flex;gap:10px;align-items:center}
 .pname input{flex:1;min-width:0;width:auto}
 canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;background:linear-gradient(#6f6bdc,#f066b8 70%,#ffc3a8);border:2px solid #69cbdc;border-radius:4px}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .look .tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px 4px;background:#140a33;border:2px solid #69cbdc44;border-radius:4px;color:#d9ccff;font-size:13px;box-shadow:none;letter-spacing:0;font-weight:400}
 .look .tile canvas{width:72px;height:72px;max-width:100%;image-rendering:pixelated;background:linear-gradient(#6f6bdc,#f066b8 70%,#ffc3a8);border-radius:3px}
 .look .tile:hover{background:#2b1a73}
@@ -121,3 +121,11 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .look .tile canvas,#online canvas.prev{width:44px;height:44px}
 #online .opts{margin:4px 0}
 #online .row{margin:4px 0}
+
+.hot{color:#ffd23f;font-style:italic;font-weight:900;letter-spacing:1px;text-shadow:1px 1px 0 #e8222f,2px 2px 0 #7a0f1c}
+.tagline{font-size:clamp(16px,3.2vw,26px);color:#fff;margin:2px 0 10px;font-style:italic;letter-spacing:1px}
+.tagline .hot{font-size:1.35em;text-shadow:2px 2px 0 #e8222f,4px 4px 0 #7a0f1c}
+.modes small .hot{font-size:13px}
+.look .tile .cat{font-size:10px;color:#9be9ff;line-height:1}
+.look .tile .cat.melee{color:#ffb86b}
+.look .tile{font-size:12px}

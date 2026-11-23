@@ -71,7 +71,8 @@
       const cv = document.createElement('canvas'); cv.width = cv.height = 36;
       drawTile(cv, { style: id, gender: me.gender, color: me.color });
       const cap = document.createElement('span'); cap.textContent = figName(id, me.gender);
-      b.append(cv, cap);
+      const kind = VB.kindOf(id), cat = document.createElement('small'); cat.className = 'cat ' + kind; cat.textContent = kind === 'ranged' ? '🔫 Ranged' : '⚔ Melee';
+      b.append(cv, cap, cat);
       b.onclick = () => { me.style = id; store.set('vb_looks', looks); redo(); };
       tiles.appendChild(b);
     });
@@ -354,6 +355,8 @@
   function playEvent(e) {
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
+      case 'shot': tone(1500, 0.14, 'square', 0.07, -1100); tone(300, 0.1, 'sawtooth', 0.05, -120, 0.02); break;
+      case 'shotHit': if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
       case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
       case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
@@ -454,7 +457,8 @@
   function openModes(rules) {
     settings.fight = rules === 'fight'; saveSettings();
     $('modeTitle').textContent = settings.fight ? 'Volley Fight' : 'Classic Hero Volley';
-    $('modeSub').textContent = settings.fight ? 'Every hero has a weapon – press the special key to smash the ball.' : 'Classic rules with power-ups.';
+    $('modeSub').innerHTML = settings.fight ? 'Like Volleyball but WITH <span class="hot">WEAPONS</span>' : 'Classic rules with power-ups.';
+    $('modeSub').classList.toggle('tagline', settings.fight);
     setPhase('mode');
   }
   function openSetup(mode) {
@@ -699,6 +703,7 @@
       Scene.drawTowels(ctx, g, t);
       for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
       g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
+      if (g.shots && g.shots.length) Scene.drawShots(ctx, g.shots, t);
       drawBall(g.ball, g._ballRot);
     }
     // pixel look: scale the small world canvas up without smoothing, then draw crisp text on top
