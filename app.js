@@ -20,7 +20,7 @@
   };
   const LEVEL_MAP = { leicht: 'easy', mittel: 'normal', schwer: 'hard' };   // saved by earlier versions
   const LEVEL_LABEL = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
-  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true, fight: false, stage: 'beach' }, store.get('vb_settings', {}));
+  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true, track: 'miami', fight: false, stage: 'beach' }, store.get('vb_settings', {}));
   settings.level = LEVEL_MAP[settings.level] || settings.level;
   if (!LEVELS[settings.level]) settings.level = 'normal';
   let names = Object.assign({ p1: '', p2: '' }, store.get('vb_names', {}));
@@ -316,7 +316,8 @@
   /* ------------------------------------------------ background music + gulls
      Light 80s "Miami" synth groove (112 BPM, A minor: Am – F – C – G, two bars each): soft kick, clap, hats,
      off-beat saw bass, warm pad and a plucky arpeggio with echo. Scheduled ahead with a small look-ahead timer. */
-  const MUSIC_BPM = 112, M_STEP = 60 / MUSIC_BPM / 4;
+  const TRACK_BPM = { miami: 112, techno: 132 };
+  let M_STEP = 60 / TRACK_BPM[settings.track === 'techno' ? 'techno' : 'miami'] / 4;
   const CHORDS = [
     { root: 55.0, n: [220.0, 261.63, 329.63] },    // Am
     { root: 43.65, n: [174.61, 220.0, 261.63] },   // F
@@ -352,6 +353,7 @@
     s.connect(f); f.connect(g); g.connect(music.bus); s.start(t); s.stop(t + dur + 0.02);
   }
   function musicStep(a, step, t) {
+    if (settings.track === 'techno') { technoStep(a, step, t); return; }
     const bar = Math.floor(step / 16), s = step % 16, ch = CHORDS[Math.floor(step / 32)];
     // drums: soft kick on every beat, clap on 2 and 4, open hat off-beat, ghost hats
     if (s % 4 === 0) { const k = a.createOscillator(), g = a.createGain(); k.type = 'sine'; k.frequency.setValueAtTime(130, t); k.frequency.exponentialRampToValueAtTime(45, t + 0.12); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); k.connect(g); g.connect(music.bus); k.start(t); k.stop(t + 0.22); }
@@ -366,6 +368,38 @@
       const idx = [0, 1, 2, 1, 0, 2, 1, 2][(s / 2) % 8], f = ch.n[idx] * (bar % 2 ? 4 : 2);
       mTone(a, t, f, M_STEP * 2.2, 'triangle', 0.14, { echo: true, hold: 0.2 });
       mTone(a, t, f, M_STEP * 1.2, 'square', 0.035, { lp: 2400, echo: true, hold: 0.2 });
+    }
+  }
+  /* Second track: driving techno (132 BPM, A minor): hard kick, off-beat open hat, clap, rolling off-beat bass, a 303-style acid line
+     whose filter opens bar by bar, detuned stabs with echo, and an 8-bar arrangement (intro, bass, acid + stabs, full, fill with a snare roll). */
+  const ACID = [55, 0, 55, 110, 0, 55, 65.41, 0, 55, 0, 82.41, 55, 0, 98, 55, 73.42];   // 0 = rest
+  function technoStep(a, step, t) {
+    const bar = Math.floor(step / 16) % 8, s = step % 16, B = music.bus;
+    // kick every beat (pitch drop), in the fill bar it drops out for the last two beats
+    if (s % 4 === 0 && !(bar === 7 && s >= 8)) {
+      const k = a.createOscillator(), g = a.createGain(); k.type = 'sine';
+      k.frequency.setValueAtTime(170, t); k.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      g.gain.setValueAtTime(0.75, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26); k.connect(g); g.connect(B); k.start(t); k.stop(t + 0.28);
+    }
+    // hats: open on the off-beat, ghost 16ths from bar 1
+    if (s % 4 === 2) mNoise(a, t, 0.11, 0.1, 8000); else if (bar >= 1 && s % 2 === 1) mNoise(a, t, 0.03, 0.03, 9000);
+    // clap on 2 and 4 from bar 2
+    if (bar >= 2 && (s === 4 || s === 12)) mNoise(a, t, 0.14, 0.16, 0, 1500);
+    // rolling off-beat bass from bar 2, ducked a little by the kick (short note)
+    if (bar >= 2 && s % 4 === 2) mTone(a, t, 55, M_STEP * 1.7, 'sawtooth', 0.26, { lp: 420, lpEnd: 160, q: 3, hold: 0.5 });
+    // acid line from bar 4: the filter opens from bar to bar, accents on every 4th note
+    if (bar >= 4 && ACID[s]) {
+      const open = 700 + ((bar - 4) / 3) * 2600 + (s % 4 === 3 ? 700 : 0);
+      mTone(a, t, ACID[s] * 2, M_STEP * 0.9, 'sawtooth', s % 4 === 3 ? 0.17 : 0.12, { lp: open, lpEnd: 260, q: 9, hold: 0.3, echo: true });
+    }
+    // stabs from bar 4: Am7 chord on the off-beat 16ths
+    if (bar >= 4 && bar <= 6 && [3, 7, 10, 14].includes(s)) {
+      [220, 261.63, 329.63, 392].forEach((f, i) => { [-9, 9].forEach(d => mTone(a, t, f, M_STEP * 1.1, 'sawtooth', 0.03, { detune: d, lp: 2200, lpEnd: 700, hold: 0.2, echo: i === 0 })); });
+    }
+    // fill bar: snare roll that gets louder and a rising noise sweep
+    if (bar === 7) {
+      if (s >= 8) mNoise(a, t, 0.08, 0.05 + (s - 8) * 0.025, 0, 2200);
+      if (s % 2 === 0) mNoise(a, t, M_STEP * 2, 0.02 + s * 0.006, 4000 + s * 450);
     }
   }
   function musicTick() {
@@ -716,9 +750,21 @@
   $('btnControlsBack').onclick = () => setPhase('menu');
   $('btnHowto').onclick = () => setPhase('howto');
   $('btnHowtoBack').onclick = () => setPhase('menu');
-  function toggleMusic() { settings.music = !settings.music; saveSettings(); musicGain(); startMusic(); $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off'); }
+  /* Music button / key N cycles: Miami -> Techno -> Off -> Miami */
+  const musicLabel = () => '🎵 Music: ' + (!settings.music ? 'Off' : settings.track === 'techno' ? 'Techno' : 'Miami');
+  function setTrack(tr) {
+    settings.track = tr; M_STEP = 60 / TRACK_BPM[tr] / 4;
+    if (music.delay) music.delay.delayTime.value = M_STEP * 3;
+    music.step = 0; if (ac) music.next = ac.currentTime + 0.1;
+  }
+  function toggleMusic() {
+    if (settings.music && settings.track === 'miami') setTrack('techno');
+    else if (settings.music) settings.music = false;
+    else { settings.music = true; setTrack('miami'); }
+    saveSettings(); musicGain(); startMusic(); $('btnMusic').textContent = musicLabel();
+  }
   $('btnMusic').onclick = toggleMusic;
-  $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off');
+  $('btnMusic').textContent = musicLabel();
   if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version;
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {

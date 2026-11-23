@@ -21,4 +21,4 @@ Live: https://dixi1989.github.io/volley-buddy/
 
 Heroes: every player picks a name, a hero (12 to choose from, all with their own Volley Fight weapon) and a color (8 to choose from) before the match. Choices are remembered.
 
-Sound: a light 80s Miami-style synth groove plays in the background with an occasional seagull screech (menu option *Music*, key N; M mutes all sound). Controls and the rules live in their own menu pages (Controls, How to play), and the Power-ups page lists all power-ups.
+Sound: a light 80s Miami-style synth groove plays in the background with an occasional seagull screech (menu option *Music*, key N, cycles Miami → Techno → Off; M mutes all sound). The second track is a driving techno loop (132 BPM, 8-bar arrangement with acid line and stabs). Controls and the rules live in their own menu pages (Controls, How to play), and the Power-ups page lists all power-ups.
