@@ -271,7 +271,7 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 body.haspad #touch{display:none !important}
 
 /* v55: German changelog (triple click on the version in the main menu) */
-#menu .build{padding:6px 8px;cursor:default;user-select:none}
+#menu .build{padding:16px 22px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;z-index:5;top:-6px;right:-4px}
 #changelog .panel{max-width:560px;text-align:left}
 #changelog h2{text-align:center;font-size:26px;margin:0 0 4px}
 .clog{max-height:340px;overflow:auto;font-size:13px;line-height:1.25}

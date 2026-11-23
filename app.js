@@ -768,14 +768,18 @@
   $('btnMusic').textContent = musicLabel();
   if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version;
   /* Ein Klick auf die Version öffnet das deutsche Änderungsprotokoll (letzte 3 Versionen, siehe version.js) */
-  $('buildInfo').addEventListener('click', () => {
+  let clogAt = 0;
+  const openChangelog = () => {
+    if (performance.now() - clogAt < 500 || phase !== 'menu') return; clogAt = performance.now();
     const log = (window.BUILD && BUILD.log) || [], body = $('changelogBody'); body.textContent = '';
     log.slice(0, 3).forEach(e => {
       const h = document.createElement('h3'); h.textContent = e.v + (e.v === BUILD.version ? ' (aktuell)' : ''); body.appendChild(h);
       const ul = document.createElement('ul'); e.items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); body.appendChild(ul);
     });
     setPhase('changelog');
-  });
+  };
+  $('buildInfo').addEventListener('click', openChangelog);
+  $('buildInfo').addEventListener('pointerup', openChangelog);       // finger taps on a tiny label: do not rely on click alone
   $('btnChangelogBack').onclick = () => setPhase('menu');
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
