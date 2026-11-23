@@ -11,7 +11,7 @@
     BLOB_R: 30, BALL_R: 24,           // ball radius (was 18)
     BLOB_SPEED: 6.4, JUMP_V: -15, BLOB_G: 0.62,
     // ball physics: speeds x0.8 and gravity x0.64 versus vb-v28 -> same trajectories, 20 % slower
-    BALL_G: 0.192, BALL_MAXV: 10.4, BALL_MAX_UP: 8.4, HIT_MIN: 6, BALL_CAP: 14.4,
+    FLIP_FRAMES: 24, FLIP_V: 12, BALL_G: 0.192, BALL_MAXV: 10.4, BALL_MAX_UP: 8.4, HIT_MIN: 6, BALL_CAP: 14.4,
     MAX_TOUCHES: 3,
     SERVE_DELAY: 80, POINT_DELAY: 100,
     HIT_Y: 280,                       // height at which the AI wants to meet the ball
@@ -186,7 +186,8 @@
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = 0; this.vy = 0;
       this.input = { left: false, right: false, jump: false, special: false };
-      this.prevSpecial = false;
+      this.prevSpecial = false; this.prevJump = false;
+      this.flip = 0; this.flipUsed = false;   // somersault: frames left / already used since the last landing
       this.touchCd = 0;
       this.fight = false;            // Volley Fight: has a weapon (melee or ranged, see kindOf)
       this.swing = 0; this.cd = 0; this.swung = false; this.aimHold = 0;   // weapon swing frames left / cooldown frames left
@@ -195,7 +196,7 @@
     }
     reset() {
       this.x = this.homeX; this.y = C.GROUND - C.BLOB_R;
-      this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0; this.aimHold = 0;
+      this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0; this.aimHold = 0; this.flip = 0; this.flipUsed = false;
     }
     get onGround() { return this.y >= C.GROUND - C.BLOB_R - 0.001; }
   }
@@ -268,6 +269,7 @@
         const by = b.y - ball.y;                // > 0: ball is above the blob
         const near = bx > -6 && bx < 56 && by > 35 && by < 205 && ball.vy > -3;
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
+        else if (!b.onGround && !b.flipUsed && bx > -10 && bx < 60 && Math.abs(by) < 60 && rng() < p.jump * 0.12) inp.jump = true;   // CPU somersault
       }
 
       // Volley Fight, ranged weapon: hold the key until the sweeping aim points at the ball, then release
@@ -484,10 +486,16 @@
       else b.x = clamp(b.x, Math.max(this.netXAt(b.y - r), this.netXAt(b.y + r)) + C.NET_HW + r, C.W - r);
 
       // Alman Mode: 80 % of the jump height needs sqrt(0.8) of the launch speed
+      const jumpEdge = inp.jump && !b.prevJump; b.prevJump = inp.jump;
       if (inp.jump && b.onGround) { b.vy = C.JUMP_V * (b.alman ? Math.sqrt(C.ALMAN_MULT) : 1) * (this.stage.jump || 1); this.emit('jump', { blob: b.id }); }
+      else if (jumpEdge && !b.onGround && !b.flipUsed) {
+        // somersault: press jump again in the air (once per jump, available again after landing); a ball hit meanwhile flies to the opponents
+        b.flipUsed = true; b.flip = C.FLIP_FRAMES; b.vy = Math.min(b.vy, -4.5 * (this.stage.jump || 1)); this.emit('flip', { blob: b.id });
+      }
+      if (b.flip > 0) b.flip--;
       b.vy += C.BLOB_G * (this.stage.blobG || 1); b.y += b.vy;
       const rest = C.GROUND - r;
-      if (b.y >= rest) { b.y = rest; b.vy = 0; }
+      if (b.y >= rest) { b.y = rest; b.vy = 0; b.flipUsed = false; b.flip = 0; }
     }
 
     collideBlob(b) {
@@ -507,6 +515,9 @@
       let sp = Math.hypot(vx, vy);
       if (sp < C.HIT_MIN) { const k = C.HIT_MIN / Math.max(sp, 0.001); vx *= k; vy *= k; sp = C.HIT_MIN; }
       if (sp > C.BALL_MAXV) { vx *= C.BALL_MAXV / sp; vy *= C.BALL_MAXV / sp; sp = C.BALL_MAXV; }
+      if (b.flip > 0 && b.touchCd === 0) {                     // hit during a somersault: straight at the opponents
+        vx = (b.team === 0 ? 1 : -1) * C.FLIP_V; vy = ball.y < C.NET_TOP - 24 ? 4 : -6;
+      }
       if (vy < -C.BALL_MAX_UP) vy = -C.BALL_MAX_UP;            // don't shoot out of the top
       ball.vx = vx; ball.vy = vy;
       ball.spin = clamp(ball.vx * 0.04, -0.5, 0.5);

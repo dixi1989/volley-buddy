@@ -439,6 +439,7 @@
       case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
       case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
+      case 'flip': tone(330, 0.16, 'triangle', 0.06, 420); break;
       case 'net': tone(320, 0.06, 'triangle', 0.1, -90); break;
       case 'wall': tone(230, 0.05, 'triangle', 0.07, -60); break;
       case 'towel': tone(140, 0.16, 'sine', 0.16, -50); tone(210, 0.1, 'triangle', 0.06, 40, 0.02); break;

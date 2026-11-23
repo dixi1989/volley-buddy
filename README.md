@@ -5,6 +5,7 @@ Beach volleyball as a PWA with gummy-bear characters (HTML/Canvas/JS, works offl
 - **1 vs 1** – two players on one keyboard (P1: A/D/W + Ctrl, P2: arrows + Right Ctrl)
 - **2 vs 2** – two players as a team against 2 CPU opponents
 - **1 vs CPU** – WASD or arrow keys
+- **Somersault:** press jump again in the air (once per jump, again after landing). A ball hit during the somersault flies straight at the opponents. The CPU does it occasionally too.
 - Enter your name(s) before each match; high scores are stored in the browser (localStorage)
 - **Power-ups:** every 30 s of rally time each player gets a power-up of random type that falls from the sky through their half (it disappears below the ground if missed). Catch it, press Ctrl to use it.
   - *Fluffy Towel* – lays a towel on your half of the court for 25 s; the ball bounces on them instead of ending the rally.

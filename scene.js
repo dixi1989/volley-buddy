@@ -458,7 +458,14 @@
     }
   }
 
-  function drawBlob(ctx, b, ball, t) { drawPerson(ctx, b, ball, t); }
+  function drawBlob(ctx, b, ball, t) {
+    if (!(b.flip > 0)) { drawPerson(ctx, b, ball, t); return; }
+    // somersault: one full forward turn around the body centre
+    const a = (1 - b.flip / C.FLIP_FRAMES) * TAU * (b.team === 0 ? 1 : -1);
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a); ctx.translate(-b.x, -b.y);
+    drawPerson(ctx, b, ball, t);
+    ctx.restore();
+  }
 
   /* A figure for the selection screens (no ball, standing still) */
   function preview(ctx, spec, t) {
