@@ -775,7 +775,60 @@
     drawNet(ctx, ...net, '#2fbf71');
   }
 
-  function drawDoner(ctx, t, net) {
+    /* The pixel chef behind the counter, slicing meat off the spit (the net) – inspired by the classic kebab bag. */
+  function drawChef(ctx, t) {
+    const ox = 476, K = '#3a2330', R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, w, h); };
+    const bob = Math.round(sin(t * 3.2) * 3);
+    // coat
+    R(ox - 24, 254, 48, 52, K); R(ox - 22, 256, 44, 50, '#f4f1ea'); R(ox - 22, 256, 6, 50, '#dcd6c8');
+    R(ox - 2, 262, 4, 4, K); R(ox - 2, 274, 4, 4, K); R(ox - 2, 286, 4, 4, K);
+    R(ox - 12, 250, 24, 8, '#d7263d'); R(ox - 4, 250, 8, 8, '#a31a2c');
+    // head
+    R(ox - 12, 222, 24, 28, K); R(ox - 10, 224, 20, 24, '#f2b98e'); R(ox - 10, 238, 4, 4, '#ee8a88'); R(ox + 6, 238, 4, 4, '#ee8a88');
+    R(ox - 6, 230, 4, 4, K); R(ox + 2, 230, 4, 4, K);
+    R(ox - 10, 240, 20, 4, K); R(ox - 12, 242, 4, 4, K); R(ox + 8, 242, 4, 4, K);          // moustache
+    R(ox - 4, 246, 8, 2, '#a02a2a');                                                       // grin
+    // hat
+    R(ox - 14, 210, 28, 14, K); R(ox - 12, 212, 24, 12, '#ffffff');
+    R(ox - 16, 188, 32, 24, K); R(ox - 14, 190, 28, 22, '#ffffff');
+    for (let x = ox - 8; x < ox + 12; x += 8) R(x, 194, 2, 16, '#d9d9e4');
+    // arm with the long knife, slicing up and down
+    const hx = ox - 30, hy = 276 + bob;
+    R(ox - 26, 262, 8, 4, K); R(ox - 30, 264, 8, 12, '#f4f1ea'); R(hx - 4, hy, 10, 8, '#f2b98e'); R(hx - 4, hy - 2, 10, 2, K);
+    ctx.save(); ctx.lineCap = 'butt';
+    ctx.strokeStyle = K; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(hx, hy + 2); ctx.lineTo(408, 262 + bob * 1.6); ctx.stroke();
+    ctx.strokeStyle = '#dfe6ee'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(hx - 2, hy + 2); ctx.lineTo(408, 262 + bob * 1.6); ctx.stroke();
+    ctx.strokeStyle = '#8a5a2c'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(hx + 8, hy + 2); ctx.lineTo(hx + 1, hy + 2); ctx.stroke();
+    ctx.restore();
+    // falling slices
+    for (let i = 0; i < 3; i++) {
+      const p = (t * 0.8 + i / 3) % 1, x = 414 + p * 16, y = 266 + p * p * 36;
+      if (y < 300) { R(x, y, 6, 3, '#a35a2c'); R(x, y, 6, 1, '#d08a4a'); }
+    }
+  }
+
+  /* The net of the Döner Shop is a rotating doner spit (same size and tilt as the net, a few pixels thicker for looks). */
+  function drawSpit(ctx, t, bx, tx) {
+    const H = C.GROUND - C.NET_TOP, L = Math.hypot(tx - bx, H), ang = Math.atan2(tx - bx, H);
+    ctx.fillStyle = 'rgba(40,10,0,.3)'; ctx.beginPath(); ctx.ellipse(bx, C.GROUND + 6, 22, 5, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(bx, C.GROUND); ctx.rotate(ang);
+    ctx.fillStyle = '#c9ccd8'; ctx.fillRect(-1.5, -L - 10, 3, L + 10);                       // skewer
+    ctx.fillRect(-9, -L - 12, 18, 3); ctx.fillStyle = '#8f93a8'; ctx.fillRect(-9, -L - 10, 18, 1);  // T handle
+    const n = Math.floor((L - 8) / 4);
+    for (let i = 0; i < n; i++) {
+      const f = i / (n - 1), y = -8 - i * 4;
+      const hw = Math.round(6.5 + 3 * Math.sin(Math.min(1, f * 1.15) * Math.PI) ** 0.7 + (rnd(i, 3) > 0.7 ? 1 : 0) - (f > 0.9 ? (f - 0.9) * 30 : 0));
+      ctx.fillStyle = i % 2 ? '#d98a45' : '#f0a85c'; ctx.fillRect(-hw, y - 4, hw * 2, 4);
+      ctx.fillStyle = '#2e1405'; ctx.fillRect(-hw, y - 4, 2, 4); ctx.fillRect(hw - 2, y - 4, 2, 4);
+      const ph = t * 3 + i * 0.55, sx = Math.sin(ph) * (hw - 3);                              // rotating streak + fat
+      if (Math.cos(ph) > -0.2) { ctx.fillStyle = 'rgba(255,224,160,.75)'; ctx.fillRect(sx - 1, y - 4, 3, 2); }
+      if (i % 5 === 0) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(Math.sin(t * 3 + i) * (hw - 2) - 1, y - 2, 2, 2); }
+    }
+    ctx.fillStyle = '#6a6e82'; ctx.fillRect(-12, -6, 24, 6); ctx.fillStyle = '#9aa0b8'; ctx.fillRect(-12, -6, 24, 2);   // drip plate
+    ctx.restore();
+  }
+
+function drawDoner(ctx, t, net) {
     const W = C.W, H = C.H;
     // wall: warm tiles with a pattern
     ctx.fillStyle = '#f3e3c4'; ctx.fillRect(0, 0, W, H);
@@ -800,27 +853,19 @@
     ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(700, 200); ctx.lineTo(700 + cos(t * 0.1) * 14, 200 + sin(t * 0.1) * 14); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(700, 200); ctx.lineTo(700 + cos(t * 1.2) * 20, 200 + sin(t * 1.2) * 20); ctx.stroke();
     // evil eye charm
     ctx.fillStyle = '#2a64d6'; ctx.beginPath(); ctx.arc(600, 200, 14, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(600, 200, 9, 0, TAU); ctx.fill(); ctx.fillStyle = '#69cbdc'; ctx.beginPath(); ctx.arc(600, 200, 5, 0, TAU); ctx.fill(); ctx.fillStyle = '#10151f'; ctx.beginPath(); ctx.arc(600, 200, 2.4, 0, TAU); ctx.fill();
+    drawChef(ctx, t);
     // counter with food
     ctx.fillStyle = '#7b4a22'; ctx.fillRect(0, 300, W, 86); ctx.fillStyle = '#9a6030'; ctx.fillRect(0, 300, W, 8); ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(0, 372, W, 14);
-    [[300, '#e0392b'], [340, '#58c24a'], [380, '#f6e9c8'], [420, '#e0a050']].forEach(([x, c]) => { ctx.fillStyle = '#c9ccd8'; ctx.fillRect(x, 286, 34, 16); ctx.fillStyle = c; ctx.fillRect(x + 3, 280, 28, 8); });
-    // the big rotating doner spit (left, behind the court)
-    const sx = 235, sw = (t * 2);
-    ctx.fillStyle = '#9aa3b8'; ctx.fillRect(sx - 2, 214, 4, 90);
-    for (let i = 0; i < 14; i++) {
-      const y = 222 + i * 5, hw = 12 + Math.min(i, 10) * 1.6 - (i > 10 ? (i - 10) * 3 : 0);
-      ctx.fillStyle = (i + Math.floor(sw * 2)) % 2 ? '#a35a2c' : '#8a4821'; ctx.fillRect(sx - hw, y, hw * 2, 5);
-      ctx.fillStyle = 'rgba(255,220,150,.45)'; ctx.fillRect(sx - hw + ((sw * 14 + i * 9) % (hw * 2 - 2)), y + 1, 3, 2);
-    }
-    const hg = ctx.createRadialGradient(sx + 40, 262, 4, sx + 40, 262, 50); hg.addColorStop(0, 'rgba(255,120,40,.4)'); hg.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = hg; ctx.fillRect(sx - 10, 210, 100, 100);
+    [[250, '#e0392b'], [290, '#58c24a'], [330, '#f6e9c8'], [370, '#e0a050']].forEach(([x, c]) => { ctx.fillStyle = '#c9ccd8'; ctx.fillRect(x, 286, 34, 16); ctx.fillStyle = c; ctx.fillRect(x + 3, 280, 28, 8); });
     // steam above the counter
-    for (let i = 0; i < 6; i++) { const x = 330 + i * 18, y = 270 - (((t * 14 + i * 13) % 40)); ctx.fillStyle = `rgba(255,255,255,${0.35 - ((270 - y) / 40) * 0.3})`; ctx.beginPath(); ctx.arc(x + sin(t * 2 + i) * 3, y, 4, 0, TAU); ctx.fill(); }
+    for (let i = 0; i < 6; i++) { const x = 290 + i * 18, y = 270 - (((t * 14 + i * 13) % 40)); ctx.fillStyle = `rgba(255,255,255,${0.35 - ((270 - y) / 40) * 0.3})`; ctx.beginPath(); ctx.arc(x + sin(t * 2 + i) * 3, y, 4, 0, TAU); ctx.fill(); }
     // checkered floor
     ctx.fillStyle = '#e9e2d0'; ctx.fillRect(0, 386, W, H - 386);
     for (let y = 386, r = 0; y < H; y += 16, r++) for (let x = (r % 2) * 32 - 32; x < W; x += 64) { ctx.fillStyle = '#2b2b3a'; ctx.fillRect(x, y, 32, 16); }
     ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
     // a fly buzzing about
     const fx = 560 + sin(t * 2.3) * 120, fy = 230 + sin(t * 3.1) * 40; ctx.fillStyle = '#10151f'; ctx.fillRect(fx, fy, 3, 3); ctx.fillStyle = 'rgba(200,220,255,.6)'; ctx.fillRect(fx - 2, fy - 2 + (Math.floor(t * 30) % 2), 3, 2);
-    drawNet(ctx, ...net, '#b0642f');
+    drawSpit(ctx, t, ...net);
   }
 
   function drawHole(ctx, t, net) {
