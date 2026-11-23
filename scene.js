@@ -386,17 +386,13 @@
   function drawWeapon(ctx, b, t, cy) {
     const dir = b.team === 0 ? 1 : -1, kind = VB.FIGURES[b.style].weapon, SW = C.WEAPON_SWING, ranged = VB.kindOf(b.style) === 'ranged';
     if (kind === 'bolt') return;
+    if (kind === 'kick' && b.swing <= 0) return;                       // the leg only shows while kicking
     const rev = !ranged && VB.MELEE[kind].rev ? -1 : 1;                   // rev: the swing goes upward (kick from below)
     const p = b.swing > 0 ? 1 - b.swing / SW : -1;                      // swing progress 0..1, -1 = idle
     const rest = rev === -1 ? (dir === 1 ? 0.9 : Math.PI - 0.9) : (dir === 1 ? -1.15 : Math.PI + 1.15);   // a leg rests down and forward, a blade up and forward
-    const idle = ranged ? VB.shotAngle(b) : rest;                       // a ranged weapon always shows its line of fire
+    const idle = ranged ? (b.aim || VB.shotAngle(b)) : rest;                       // a ranged weapon always shows its line of fire
     const ang = ranged ? (b.swing > 0 ? (b.aim || 0) : idle) : (p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir * rev);
     ctx.save(); if (kind === 'kick') ctx.translate(dir * 6, 18 + cy); else ctx.translate(dir * 14, 4 + cy);
-    if (ranged && b.aimHold > 0 && b.cd === 0) {                         // aiming: dotted line of fire
-      const W = VB.RANGED[kind], L = Math.min(W.v * W.life * 0.9, 330);
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.lineDashOffset = -t * 30;
-      ctx.beginPath(); ctx.moveTo(Math.cos(ang) * 30, Math.sin(ang) * 30); ctx.lineTo(Math.cos(ang) * L, Math.sin(ang) * L); ctx.stroke(); ctx.setLineDash([]);
-    }
     if (p >= 0 && !ranged) {                                                       // slash trail
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(0, 0);
       ctx.arc(0, 0, 58, (b.aim || 0) - 1.1 * dir * rev, ang, dir * rev < 0); ctx.closePath(); ctx.fill();
@@ -413,7 +409,7 @@
       const a = Math.atan2(s.vy, s.vx);
       ctx.save(); ctx.translate(Math.round(s.x), Math.round(s.y)); ctx.rotate(a);
       if (s.k === 2) {          // gherkin slice: round green disc with a lighter middle and seeds
-        ctx.rotate(t * 12);
+        ctx.scale(1.7, 1.7); ctx.rotate(t * 12);
         ctx.fillStyle = '#3f8f2a'; ctx.fillRect(-7, -5, 14, 10); ctx.fillRect(-5, -7, 10, 14);
         ctx.fillStyle = '#a6e060'; ctx.fillRect(-5, -3, 10, 6); ctx.fillRect(-3, -5, 6, 10);
         ctx.fillStyle = '#e8f6b0'; ctx.fillRect(-3, -1, 2, 2); ctx.fillRect(1, -3, 2, 2); ctx.fillRect(1, 1, 2, 2);

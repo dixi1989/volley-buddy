@@ -66,12 +66,12 @@
     kebabknife: ['Doner knife', 'Fastest, flat smash and a short recharge (like the katana).'],
     lasso: ['Lasso', 'Very long reach: lobs the ball high over the net. Slow recharge.'],
     rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
-    shotgun: ['Shotgun', '3 pellets, short range, slow reload. Hold the key to aim, release to fire.'],
-    revolver: ['Revolver', '1 bullet, fires again quickly. Hold the key to aim, release to fire.'],
-    pickle: ['Gherkin cannon', 'Shoots gherkin slices that bend the ball into their direction. Hold the key to aim, release to fire.'],
+    shotgun: ['Shotgun', '3 pellets, short range, slow reload.'],
+    revolver: ['Revolver', '1 bullet, fires again quickly.'],
+    pickle: ['Gherkin cannon', 'Shoots gherkin slices that bend the ball into their direction.'],
     kick: ['Kick', 'Kicks the ball from below: it flies up and forward. Medium reach.'],
     bolt: ['Thunder', 'Lightning bolts fly in all directions at once and bend the ball. No aiming – just press the key.'],
-    hole: ['Black hole cannon', 'A hit swallows the ball: it drops from the sky at a random spot on the opponents\' side. Slow recharge. Hold to aim, release to fire.'],
+    hole: ['Black hole cannon', 'A hit swallows the ball: it drops from the sky at a random spot on the opponents\' side. Slow recharge.'],
     bat: ['Baseball bat', 'Fastest, flat smash and a short recharge (like the katana).']
   };
   const figName = id => FIGURES[id].name;
@@ -708,7 +708,7 @@
       const me = g.mode === 'online' ? g.blobs[g.localTeam] : g.blobs.find(b => b.controller === 'human');
       if (me) {
         const key = usingPad ? 'RT' : touchMode ? 'the WEAPON button' : (g.mode === 'online' || g.mode === 'solo' || g.mode === 'team' ? 'Ctrl' : 'Ctrl');
-        const txt = VB.kindOf(me.style) === 'ranged' ? (VB.RANGED[VB.FIGURES[me.style].weapon].ring ? 'Press ' + key + ' to shoot lightning in all directions' : 'Hold ' + key + ' to aim – release to fire') : (me.style === 'transformer' ? 'Press ' + key + ' to kick the ball' : 'Press ' + key + ' to swing your weapon at the ball');
+        const txt = VB.kindOf(me.style) === 'ranged' ? (VB.RANGED[VB.FIGURES[me.style].weapon].ring ? 'Press ' + key + ' to shoot lightning in all directions' : 'Press ' + key + ' to shoot at the ball') : (me.style === 'transformer' ? 'Press ' + key + ' to kick the ball' : 'Press ' + key + ' to swing your weapon at the ball');
         ctx.globalAlpha = Math.min(1, (480 - g.frames) / 60);
         ctx.font = '700 16px ' + FONT; ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4;
         ctx.strokeStyle = 'rgba(26,10,61,.85)'; ctx.strokeText(txt, 400, 432); ctx.fillStyle = '#ffe066'; ctx.fillText(txt, 400, 432);

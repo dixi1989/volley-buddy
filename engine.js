@@ -65,7 +65,7 @@
     /* effect: 'speed' (default: faster / slower ball), 'deflect' (the ball is bent toward the shot's direction), 'hole' (the ball vanishes
      * and drops from the sky on the opponents' side). k = look of the projectile (0 pellet, 1 bullet, 2 pickle slice, 3 lightning, 4 black hole).
      * ring: fires n shots in all directions at once on a key press (no aiming). */
-    pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 40, k: 2, effect: 'deflect' },          // McRib: gherkin slices
+    pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 40, k: 2, r: 13, effect: 'deflect' },          // McRib: gherkin slices
     bolt:     { n: 8, spread: 0,    v: 11, life: 34, cd: 84, k: 3, effect: 'deflect', ring: true },   // Cloudy: lightning in every direction
     hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' }            // Gagari: black hole cannon
   };
@@ -249,16 +249,11 @@
         if (b.cd === 0 && sim.state === 'play' && Math.hypot(ball.x - b.x, ball.y - b.y) < 190 && rng() < p.wpn * 1.5) inp.special = true;
       }
       else if (sim.fight && kindOf(b.style) === 'ranged') {
+        // auto-aimed: press when the ball is in front of us and within range of the shot
         const W = RANGED[weaponOf(b.style)];
-        if (b.cd === 0 && sim.state === 'play') {
-          const t = Math.hypot(ball.x - b.x, ball.y - b.y) / W.v;
-          const tx = ball.x + ball.vx * t, ty = ball.y + ball.vy * t;           // lead the ball a little
-          const dx = (tx - b.x) * dir, need = Math.atan2(ty - (b.y - 4), Math.max(dx, 1));
-          const inRange = dx > 40 && dx < W.v * W.life * 0.9;
-          const cur = aimAt(b.aimHold);
-          if (b.aimHold > 0) {                                               // aiming: keep holding until the line is on the ball
-            if (inRange && b.aimHold < AIM_PERIOD && Math.abs(cur - need) > 0.09) inp.special = true;
-          } else if (inRange && need > -0.95 && need < 0.35 && rng() < p.wpn * 1.5) inp.special = true;
+        if (b.cd === 0 && b.swing === 0 && sim.state === 'play') {
+          const dist = Math.hypot(ball.x - b.x, ball.y - b.y), dxf = (ball.x - b.x) * dir;
+          if (dxf > 40 && dist < W.v * W.life * 0.9 && rng() < p.wpn * 1.5) inp.special = true;
         }
       }
       // Volley Fight, melee weapon: swing when the ball is in reach
@@ -502,15 +497,23 @@
       if (this.touches[b.team] > C.MAX_TOUCHES) this.endRally(1 - b.team, 'fault');
     }
 
-    /* Ranged weapon: fires projectiles in the direction of shotAngle() (no auto-aim) – over the net if the angle is right.
+    /* Auto-aim of ranged weapons: angle toward the ball, led by its flight time, always at least a little forward. */
+    autoAngle(b, W) {
+      const ball = this.ball, dir = b.team === 0 ? 1 : -1, y0 = b.y - 4;
+      const t = Math.min(40, Math.hypot(ball.x - b.x, ball.y - y0) / W.v);
+      const tx = ball.x + ball.vx * t, ty = ball.y + ball.vy * t;
+      const a = clamp(Math.atan2(ty - y0, Math.max((tx - b.x) * dir, 30)), -1.3, 0.8);
+      return dir === 1 ? a : Math.PI - a;
+    }
+    /* Ranged weapon: fires projectiles toward the (auto-aimed) ball – over the net if the ball is flying there.
      * Ring weapons (Cloudy) send their shots in all directions at once. */
     fire(b) {
-      const W = RANGED[weaponOf(b.style)], a0 = W.ring ? 0 : shotAngle(b);
+      const W = RANGED[weaponOf(b.style)], a0 = W.ring ? 0 : this.autoAngle(b, W);
       b.aim = a0; b.swing = 10; b.cd = W.cd;
       this.volley = (this.volley || 0) + 1;
       for (let i = 0; i < W.n; i++) {
         const a = W.ring ? (i / W.n) * Math.PI * 2 : a0 + (i - (W.n - 1) / 2) * W.spread;
-        this.shots.push({ x: b.x + Math.cos(a) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life,
+        this.shots.push({ x: b.x + Math.cos(a) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life, r: W.r || C.SHOT_R,
           k: W.k !== undefined ? W.k : (W.n > 1 ? 0 : 1), fx: W.effect || 'speed', vol: this.volley });
       }
       this.emit('shot', { blob: b.id, heavy: W.n > 1 && !W.ring, kind: W.k || 0 });
@@ -523,7 +526,7 @@
         const s = this.shots[i];
         s.x += s.vx; s.y += s.vy;
         let dead = --s.life <= 0 || s.x < -20 || s.x > C.W + 20 || s.y < -20 || s.y > C.GROUND + 10 || this.state === 'over';
-        if (!dead && this.state === 'play' && s.vol !== this.ballVol && Math.hypot(ball.x - s.x, ball.y - s.y) < C.BALL_R + C.SHOT_R) {
+        if (!dead && this.state === 'play' && s.vol !== this.ballVol && Math.hypot(ball.x - s.x, ball.y - s.y) < C.BALL_R + (s.r || C.SHOT_R)) {
           this.ballVol = s.vol;                       // one effect per volley, even if several pellets hit
           const toOpp = s.team === 0 ? 1 : -1;
           const sp = Math.hypot(ball.vx, ball.vy);
@@ -564,13 +567,9 @@
       const live = this.state === 'serve' || this.state === 'play';
       const dir = b.team === 0 ? 1 : -1;
       if (kindOf(b.style) === 'ranged') {
-        if (RANGED[weaponOf(b.style)].ring) {                          // Cloudy: no aiming, a key press fires in all directions
-          if (pressed && live && b.cd === 0 && b.swing === 0) this.fire(b);
-          return;
-        }
-        // hold the key = aim (the line sweeps), release = fire
-        if (b.input.special && live && b.cd === 0 && b.swing === 0) b.aimHold++;
-        else if (b.aimHold > 0) { if (live && b.cd === 0 && b.swing === 0) this.fire(b); b.aimHold = 0; }
+        const W = RANGED[weaponOf(b.style)];
+        if (!W.ring && b.swing === 0) b.aim = this.autoAngle(b, W);      // the weapon follows the ball
+        if (pressed && live && b.cd === 0 && b.swing === 0) this.fire(b);   // a key press fires (ring weapons: in all directions)
         return;
       }
       const M = MELEE[weaponOf(b.style)];
