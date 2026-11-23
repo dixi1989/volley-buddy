@@ -1,2 +1,2 @@
 /* Build info shown in the main menu. Update together with VERSION in sw.js on every change. */
-window.BUILD = { version: 'vb-v45', time: '23.11.2026 17:35' };
+window.BUILD = { version: 'vb-v46', time: '23.11.2026 17:35' };
