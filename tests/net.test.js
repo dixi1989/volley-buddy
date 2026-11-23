@@ -4,7 +4,7 @@ const VB = require('../engine.js');
 const NET = require('../net.js');
 const { Sim } = VB;
 
-const spec = (color, label) => ({ controller: 'human', color, gender: 'm', label });
+const spec = (color, label) => ({ controller: 'human', color, label });
 const mk = () => new Sim({ teams: [[spec('#3aa0ff', 'A')], [spec('#ff5a55', 'B')]], level: 'normal', target: 11, seed: 7 });
 const host = mk(), guest = mk();
 const rnd = VB.mulberry32(42);

@@ -56,7 +56,7 @@
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
-  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'ninja' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'cowboy' } }, store.get('vb_looks', {}));
+  const looks = Object.assign({ p1: { color: PALETTE[7][1], style: 'ninja' }, p2: { color: PALETTE[6][1], style: 'cowboy' } }, store.get('vb_looks', {}));
   ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = k === 'p1' ? 'ninja' : 'cowboy'; });
   /* name / figure / colour picker used by the setup screen and the online lobby */
   /* Ability texts shown in the hero select (keep in sync with MELEE / RANGED in engine.js) */
@@ -67,21 +67,14 @@
     lasso: ['Lasso', 'Very long reach: lobs the ball high over the net. Slow recharge.'],
     rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
     shotgun: ['Shotgun', '3 pellets, short range, slow reload. Hold the key to aim, release to fire.'],
-    revolver: ['Revolver', '1 bullet, fires again quickly. Hold the key to aim, release to fire.']
+    revolver: ['Revolver', '1 bullet, fires again quickly. Hold the key to aim, release to fire.'],
+    pickle: ['Gherkin cannon', 'Shoots gherkin slices that bend the ball into their direction. Hold the key to aim, release to fire.'],
+    kick: ['Kick', 'Kicks the ball from below: it flies up and forward. Medium reach.'],
+    bolt: ['Thunder', 'Lightning bolts fly in all directions at once and bend the ball. No aiming – just press the key.'],
+    hole: ['Black hole cannon', 'A hit swallows the ball: it drops from the sky at a random spot on the opponents\' side. Slow recharge. Hold to aim, release to fire.'],
+    bat: ['Baseball bat', 'Fastest, flat smash and a short recharge (like the katana).']
   };
-  /* Pixel glyphs for the male / female buttons (drawn on a small grid, shown 3x crisp) */
-  const GLYPH = {
-    m: ['......#####', '........#.#', '.......#..#', '..###.#...#', '.#...#.....', '.#...#.....', '.#...#.....', '.#...#.....', '..###......'],
-    f: ['..###..', '.#...#.', '.#...#.', '.#...#.', '.#...#.', '..###..', '...#...', '.#####.', '...#...', '...#...']
-  };
-  function glyph(g, color) {
-    const rows = GLYPH[g], c = document.createElement('canvas'), S = 3;
-    c.width = rows[0].length * S; c.height = rows.length * S;
-    const x = c.getContext('2d'); x.fillStyle = color;
-    rows.forEach((row, y) => [...row].forEach((ch, i) => { if (ch === '#') x.fillRect(i * S, y * S, S, S); }));
-    return c;
-  }
-  const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
+  const figName = id => FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
   function drawTile(c, spec) {
     const x = c.getContext('2d');
@@ -103,20 +96,14 @@
     Object.keys(FIGURES).forEach(id => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tile' + (me.style === id ? ' sel' : ''); b.dataset.k = box.id + ':f:' + id;
       const cv = document.createElement('canvas'); cv.width = cv.height = 36;
-      drawTile(cv, { style: id, gender: me.gender, color: me.color });
-      const cap = document.createElement('span'); cap.textContent = figName(id, me.gender);
+      drawTile(cv, { style: id, color: me.color });
+      const cap = document.createElement('span'); cap.textContent = figName(id);
       const kind = VB.kindOf(id), cat = document.createElement('small'); cat.className = 'cat ' + kind; cat.textContent = kind === 'ranged' ? '🔫' : '⚔'; cat.title = kind === 'ranged' ? 'Ranged weapon' : 'Melee weapon';
       b.append(cv, cap, cat);
       b.onclick = () => { me.style = id; store.set('vb_looks', looks); redo(); };
       tiles.appendChild(b);
     });
     const r2 = document.createElement('div'); r2.className = 'lrow';
-    [['m', '♂'], ['f', '♀']].forEach(([g, label]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.title = g === 'm' ? 'Male' : 'Female'; b.dataset.k = box.id + ':g:' + g; b.setAttribute('aria-label', b.title);
-      b.appendChild(glyph(g, me.gender === g ? '#ffffff' : '#d9ccff'));
-      b.onclick = () => { me.gender = g; store.set('vb_looks', looks); redo(); };
-      r2.appendChild(b);
-    });
     const gap = document.createElement('span'); gap.className = 'gap'; r2.appendChild(gap);
     PALETTE.forEach(([name, col]) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (' swimwear'); b.dataset.k = box.id + ':c:' + col;
@@ -410,14 +397,20 @@
     o.connect(g); g.connect(a.destination);
     o.start(t0); o.stop(t0 + dur + 0.03);
   }
+  const fxs = [];                 // visual effects of events (black hole), see Scene.drawFx
   function playEvent(e) {
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
       case 'shot':
-        if (e.heavy) { tone(110, 0.22, 'sawtooth', 0.2, -80); tone(700, 0.12, 'square', 0.08, -600); tone(70, 0.3, 'triangle', 0.16, -30, 0.05); }
+        if (e.kind === 2) { tone(420, 0.08, 'triangle', 0.1, 300); tone(200, 0.1, 'square', 0.05, -100, 0.02); }
+        else if (e.kind === 3) { tone(1400, 0.2, 'sawtooth', 0.08, -1100); tone(90, 0.25, 'square', 0.1, -50); tone(2200, 0.12, 'square', 0.05, -1800, 0.04); }
+        else if (e.kind === 4) { tone(300, 0.4, 'sine', 0.14, -240); tone(70, 0.45, 'triangle', 0.14, 40); }
+        else if (e.heavy) { tone(110, 0.22, 'sawtooth', 0.2, -80); tone(700, 0.12, 'square', 0.08, -600); tone(70, 0.3, 'triangle', 0.16, -30, 0.05); }
         else { tone(1800, 0.09, 'square', 0.09, -1400); tone(260, 0.1, 'sawtooth', 0.06, -150, 0.02); }
         break;
-      case 'shotHit': if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
+      case 'hole': if (e.arrive) { tone(120, 0.35, 'sine', 0.14, 700); tone(900, 0.25, 'triangle', 0.06, 300, 0.1); } else { tone(900, 0.35, 'sine', 0.14, -800); tone(200, 0.3, 'triangle', 0.08, -100, 0.05); }
+        fxs.push({ x: e.x0, y: e.y0, arrive: !!e.arrive, t0: performance.now() / 1000 }); break;
+      case 'shotHit': if (e.fx === 'deflect') { tone(300, 0.14, 'triangle', 0.14, 500); tone(800, 0.1, 'square', 0.06, -300, 0.03); } else if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
       case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
       case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
@@ -549,11 +542,11 @@
   /* --------------------------------------------------------- start a match */
   function startGame(mode, p1, p2) {
     lastSetup = { mode, p1, p2 };
-    const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, gender: looks[slot].gender, style: looks[slot].style, label });
+    const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, style: looks[slot].style, label });
     const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
     const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU heroes take colors nobody chose
     let ci = 0;
-    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', style: Object.keys(FIGURES)[Math.floor(Math.random() * Object.keys(FIGURES).length)], label: 'CPU' });
+    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], style: Object.keys(FIGURES)[Math.floor(Math.random() * Object.keys(FIGURES).length)], label: 'CPU' });
     let teams, tn;
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
@@ -715,7 +708,7 @@
       const me = g.mode === 'online' ? g.blobs[g.localTeam] : g.blobs.find(b => b.controller === 'human');
       if (me) {
         const key = usingPad ? 'RT' : touchMode ? 'the WEAPON button' : (g.mode === 'online' || g.mode === 'solo' || g.mode === 'team' ? 'Ctrl' : 'Ctrl');
-        const txt = VB.kindOf(me.style) === 'ranged' ? 'Hold ' + key + ' to aim – release to fire' : 'Press ' + key + ' to swing your weapon at the ball';
+        const txt = VB.kindOf(me.style) === 'ranged' ? (VB.RANGED[VB.FIGURES[me.style].weapon].ring ? 'Press ' + key + ' to shoot lightning in all directions' : 'Hold ' + key + ' to aim – release to fire') : (me.style === 'transformer' ? 'Press ' + key + ' to kick the ball' : 'Press ' + key + ' to swing your weapon at the ball');
         ctx.globalAlpha = Math.min(1, (480 - g.frames) / 60);
         ctx.font = '700 16px ' + FONT; ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4;
         ctx.strokeStyle = 'rgba(26,10,61,.85)'; ctx.strokeText(txt, 400, 432); ctx.fillStyle = '#ffe066'; ctx.fillText(txt, 400, 432);
@@ -783,6 +776,7 @@
       for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
       g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
       if (g.shots && g.shots.length) Scene.drawShots(ctx, g.shots, t);
+      if (fxs.length) { const now = performance.now() / 1000; while (fxs.length && now - fxs[0].t0 > 0.6) fxs.shift(); Scene.drawFx(ctx, fxs, now); }
       drawBall(g.ball, g._ballRot);
     }
     // pixel look: scale the small world canvas up without smoothing, then draw crisp text on top
@@ -823,7 +817,7 @@
   }
   function myLook() {
     names.p1 = cleanName($('onName').value); store.set('vb_names', names);
-    return { n: names.p1, c: looks.p1.color, g: looks.p1.gender, s: looks.p1.style };
+    return { n: names.p1, c: looks.p1.color, s: looks.p1.style };
   }
   function lobbyBusy(on) { $('btnCreate').disabled = $('btnJoin').disabled = on; }
 
@@ -872,7 +866,7 @@
   /* ---- host ---- */
   function hostStartMatch(h) {
     const mine = online.me;
-    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm', style: styleOf(h.s) };
+    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), style: styleOf(h.s) };
     if (online.guest.color === mine.c) online.guest.color = otherColor(mine.c);
     newOnlineGame();
   }
@@ -881,8 +875,8 @@
     const hn = mine.n || 'Host';
     online.gid++; online.seq = 0; online.myRm = false;
     online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
-    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0 };
-    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight });
+    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0 };
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight });
     game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
     setPhase('play');
   }
@@ -891,14 +885,14 @@
   function buildGuestGame(cfg) {
     online.gid = cfg.gid; online.lastQ = -1; online.q.length = 0; online.pendEv.length = 0; online.primed = false; online.myRm = false;
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
-    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
+    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
     game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
     setPhase('play');
   }
   function guestReceive(m) {
-    if (m.cfg && typeof m.cfg === 'object' && m.cfg.gid !== online.gid && Array.isArray(m.cfg.names) && Array.isArray(m.cfg.colors) && Array.isArray(m.cfg.genders)) buildGuestGame(m.cfg);
+    if (m.cfg && typeof m.cfg === 'object' && m.cfg.gid !== online.gid && Array.isArray(m.cfg.names) && Array.isArray(m.cfg.colors)) buildGuestGame(m.cfg);
     if (m.g !== online.gid || !game || m.q <= online.lastQ) return;
     online.lastQ = m.q; online.q.push(m);
   }
@@ -969,8 +963,8 @@
   const STEP = 1000 / 60;
   let last = performance.now(), acc = 0, demoDone = 0;
   function newDemo() {
-    const A = (c, g) => ({ controller: 'ai', color: c, gender: g, label: 'CPU' });
-    demo = new Sim({ teams: [[A(COLORS.blue, 'm'), A(COLORS.green, 'f')], [A(COLORS.red, 'f'), A(COLORS.yellow, 'm')]], level: 'normal', target: 5 });
+    const A = (c, style) => ({ controller: 'ai', color: c, style, label: 'CPU' });
+    demo = new Sim({ teams: [[A(COLORS.blue, 'ninja'), A(COLORS.green, 'mcrib')], [A(COLORS.red, 'cowboy'), A(COLORS.yellow, 'kindi')]], level: 'normal', target: 5 });
     demo.teamNames = ['', '']; demoDone = 0;
   }
   newDemo();

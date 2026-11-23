@@ -48,15 +48,26 @@
     ninja: { name: 'Ninja', weapon: 'katana' },
     kebabi: { name: 'Kebabi', weapon: 'kebabknife' },
     adventurer: { name: 'Adventurer', weapon: 'lasso' },
-    santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: 'rod' }
+    santa: { name: 'Santa', weapon: 'rod' },
+    mcrib: { name: 'McRib', weapon: 'pickle' },
+    transformer: { name: 'Transformer', weapon: 'kick' },
+    cloudy: { name: 'Cloudy', weapon: 'bolt' },
+    gagari: { name: 'Gagari', weapon: 'hole' },
+    kindi: { name: 'Kindi', weapon: 'bat' }
   };
   const DEFAULT_FIGURE = 'pixel';
   /* Weapon categories: 'melee' (swing, smashes the ball faster) and 'ranged' (fires a bolt over the net that speeds up / slows down the ball). */
-  const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', shotgun: 'ranged', revolver: 'ranged' };
+  const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', kick: 'melee', bat: 'melee', shotgun: 'ranged', revolver: 'ranged', pickle: 'ranged', bolt: 'ranged', hole: 'ranged' };
   /* Ranged weapons (no auto-aim): n projectiles per shot spread by `spread` rad, speed v px/frame, flight time `life` frames, cooldown `cd` frames. */
   const RANGED = {
     shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 76 },      // 3 pellets, short range, slow to reload
-    revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 32 }        // one bullet, quick to fire again
+    revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 32 },       // one bullet, quick to fire again
+    /* effect: 'speed' (default: faster / slower ball), 'deflect' (the ball is bent toward the shot's direction), 'hole' (the ball vanishes
+     * and drops from the sky on the opponents' side). k = look of the projectile (0 pellet, 1 bullet, 2 pickle slice, 3 lightning, 4 black hole).
+     * ring: fires n shots in all directions at once on a key press (no aiming). */
+    pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 40, k: 2, effect: 'deflect' },          // McRib: gherkin slices
+    bolt:     { n: 8, spread: 0,    v: 11, life: 34, cd: 84, k: 3, effect: 'deflect', ring: true },   // Cloudy: lightning in every direction
+    hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' }            // Gagari: black hole cannon
   };
   const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
   const kindOf = style => WEAPON_KIND[weaponOf(style)];
@@ -67,7 +78,9 @@
     katana: { reach: 58,  v: 14.4,  fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 58 },               // fastest, flat, recharges quickly
     kebabknife: { reach: 58, v: 14.4, fwd: 1.0, up: -0.06, aimW: 0.15, cd: 58 },              // Kebabi's doner knife: same values as the katana
     lasso:  { reach: 112, v: 10.8, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 94 },              // long reach, high lob, slow recharge
-    rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 76, dip: 55 }      // the ball dips steeply behind the net
+    rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 76, dip: 55 },     // the ball dips steeply behind the net
+    bat:    { reach: 58,  v: 14.4, fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 58 },                // Kindi's baseball bat: same values as the katana
+    kick:   { reach: 56,  v: 14,   fwd: 0.8,  up: -0.55, aimW: 0.1,  cd: 62, rev: true }      // Transformer: kick from below, the ball flies up and forward (rev = the swing goes upward)
   };
   const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : MELEE[weaponOf(style)].cd);
   /* Direction of a ranged shot (no auto-aim): the player HOLDS the special key and the aim sweeps up and down; releasing fires.
@@ -137,11 +150,10 @@
 
   /* ---------------------------------------------------------------- Blob */
   class Blob {
-    constructor(id, team, homeX, controller, color, label, gender, style) {
+    constructor(id, team, homeX, controller, color, label, style) {
       this.id = id; this.team = team; this.homeX = homeX;
       this.controller = controller; // 'human' | 'ai'
       this.color = color; this.label = label;
-      this.gender = gender === 'f' ? 'f' : 'm';   // looks only: swim trunks or bikini
       this.style = FIGURES[style] ? style : DEFAULT_FIGURE;   // looks only: see FIGURES
       this.aura = false;
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
@@ -232,7 +244,11 @@
       }
 
       // Volley Fight, ranged weapon: hold the key until the sweeping aim points at the ball, then release
-      if (sim.fight && kindOf(b.style) === 'ranged') {
+      if (sim.fight && kindOf(b.style) === 'ranged' && RANGED[weaponOf(b.style)].ring) {
+        // ring weapon (Cloudy): fire when the ball is close enough for a bolt to reach it
+        if (b.cd === 0 && sim.state === 'play' && Math.hypot(ball.x - b.x, ball.y - b.y) < 190 && rng() < p.wpn * 1.5) inp.special = true;
+      }
+      else if (sim.fight && kindOf(b.style) === 'ranged') {
         const W = RANGED[weaponOf(b.style)];
         if (b.cd === 0 && sim.state === 'play') {
           const t = Math.hypot(ball.x - b.x, ball.y - b.y) / W.v;
@@ -273,7 +289,7 @@
         const hs = homes(team.length);
         team.forEach((spec, i) => {
           const hx = t === 0 ? C.NET_X * hs[i] : C.NET_X + C.NET_X * hs[i];
-          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.gender, spec.style);
+          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.style);
           b.fight = this.fight;
           if (spec.controller === 'ai') b.ai = new AI(b, this, this.level);
           this.blobs.push(b);
@@ -486,16 +502,18 @@
       if (this.touches[b.team] > C.MAX_TOUCHES) this.endRally(1 - b.team, 'fault');
     }
 
-    /* Ranged weapon: fires projectiles in the direction of shotAngle() (no auto-aim) – over the net if the angle is right. */
+    /* Ranged weapon: fires projectiles in the direction of shotAngle() (no auto-aim) – over the net if the angle is right.
+     * Ring weapons (Cloudy) send their shots in all directions at once. */
     fire(b) {
-      const W = RANGED[weaponOf(b.style)], a0 = shotAngle(b);
+      const W = RANGED[weaponOf(b.style)], a0 = W.ring ? 0 : shotAngle(b);
       b.aim = a0; b.swing = 10; b.cd = W.cd;
       this.volley = (this.volley || 0) + 1;
       for (let i = 0; i < W.n; i++) {
-        const a = a0 + (i - (W.n - 1) / 2) * W.spread;
-        this.shots.push({ x: b.x + Math.cos(a0) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a0) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life, k: W.n > 1 ? 0 : 1, vol: this.volley });
+        const a = W.ring ? (i / W.n) * Math.PI * 2 : a0 + (i - (W.n - 1) / 2) * W.spread;
+        this.shots.push({ x: b.x + Math.cos(a) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life,
+          k: W.k !== undefined ? W.k : (W.n > 1 ? 0 : 1), fx: W.effect || 'speed', vol: this.volley });
       }
-      this.emit('shot', { blob: b.id, heavy: W.n > 1 });
+      this.emit('shot', { blob: b.id, heavy: W.n > 1 && !W.ring, kind: W.k || 0 });
       b.aimHold = 0;
     }
     /* Bolts: a hit on a ball flying toward the opponents speeds it up, on a ball flying toward the shooter's own side it slows it down. */
@@ -509,16 +527,29 @@
           this.ballVol = s.vol;                       // one effect per volley, even if several pellets hit
           const toOpp = s.team === 0 ? 1 : -1;
           const sp = Math.hypot(ball.vx, ball.vy);
-          let boost;
-          if (sp < 3) { ball.vx = s.vx * 0.5; ball.vy = s.vy * 0.5; boost = true; }
+          let boost = true;
+          if (s.fx === 'hole') {
+            // black hole: the ball vanishes and drops from the sky at a random spot on the opponents' side
+            const lo = s.team === 0 ? C.NET_X + 60 : 60, hi = s.team === 0 ? C.W - 60 : C.NET_X - 60;
+            this.emit('hole', { x0: ball.x, y0: ball.y });
+            ball.x = lo + this.rng() * (hi - lo); ball.y = C.BALL_R + 6; ball.vx = 0; ball.vy = 0.5; ball.spin = 0; ball.dip = 0;
+            this.emit('hole', { x0: ball.x, y0: ball.y, arrive: true });
+          } else if (s.fx === 'deflect') {
+            // the ball is bent toward the direction of the shot
+            ball.vx = ball.vx * 0.45 + s.vx * 0.85; ball.vy = ball.vy * 0.45 + s.vy * 0.85;
+            const n = Math.hypot(ball.vx, ball.vy);
+            if (n > C.BALL_CAP) { ball.vx *= C.BALL_CAP / n; ball.vy *= C.BALL_CAP / n; }
+            if (n < 6) { ball.vx *= 6 / Math.max(n, 0.1); ball.vy *= 6 / Math.max(n, 0.1); }
+            ball.dip = 0;
+          } else if (sp < 3) { ball.vx = s.vx * 0.5; ball.vy = s.vy * 0.5; boost = true; }
           else {
             boost = ball.vx * toOpp > 0;
             const f = boost ? C.SHOT_BOOST : C.SHOT_SLOW;
             ball.vx *= f; ball.vy *= f;
             if (boost) { const n = Math.hypot(ball.vx, ball.vy); if (n > C.BALL_CAP) { ball.vx *= C.BALL_CAP / n; ball.vy *= C.BALL_CAP / n; } }
           }
-          this.emit('shotHit', { boost, x: ball.x, y: ball.y });
-          dead = s.k === 1;                            // a bullet is used up; pellets fly on
+          if (s.fx !== 'hole') this.emit('shotHit', { boost, x: ball.x, y: ball.y, fx: s.fx });
+          dead = s.k !== 0;                            // pellets fly on; bullets, slices, bolts and black holes are used up
         }
         if (dead) this.shots.splice(i, 1);
       }
@@ -533,6 +564,10 @@
       const live = this.state === 'serve' || this.state === 'play';
       const dir = b.team === 0 ? 1 : -1;
       if (kindOf(b.style) === 'ranged') {
+        if (RANGED[weaponOf(b.style)].ring) {                          // Cloudy: no aiming, a key press fires in all directions
+          if (pressed && live && b.cd === 0 && b.swing === 0) this.fire(b);
+          return;
+        }
         // hold the key = aim (the line sweeps), release = fire
         if (b.input.special && live && b.cd === 0 && b.swing === 0) b.aimHold++;
         else if (b.aimHold > 0) { if (live && b.cd === 0 && b.swing === 0) this.fire(b); b.aimHold = 0; }
