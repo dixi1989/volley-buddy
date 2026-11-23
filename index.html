@@ -19,24 +19,9 @@
     <div class="panel">
       <h1><img src="icons/logo.svg" alt="Beach Volley Hero" width="640" height="250"></h1>
       <div class="modes">
-        <button data-mode="duel"><span class="mi">🥊</span><b>1 : 1</b><small>Local duel</small></button>
-        <button data-mode="team"><span class="mi">🤝</span><b>2 : 2</b><small>Team vs CPU</small></button>
-        <button data-mode="solo"><span class="mi">🤖</span><b>1 vs CPU</b><small>Play solo</small></button>
-        <button id="btnOnline"><span class="mi">🌐</span><b>Online</b><small>Play a friend</small></button>
-      </div>
-      <div class="opts">
-        <label>CPU level
-          <select id="level"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
-        </label>
-        <label>Rules
-          <select id="rules"><option value="classic">Classic</option><option value="fight">Volley Fight</option></select>
-        </label>
-        <label>Music
-          <select id="music"><option value="on">On</option><option value="off">Off</option></select>
-        </label>
-        <label>Points to win
-          <select id="target"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
-        </label>
+        <button data-rules="classic"><span class="mi">🏐</span><b>Classic Hero Volley</b><small>Power-ups · 1:1 · 2:2 · CPU</small></button>
+        <button data-rules="fight"><span class="mi">⚔️</span><b>Volley Fight</b><small>Weapons smash the ball</small></button>
+        <button id="btnOnline"><span class="mi">🌐</span><b>Online Fight</b><small>Play a friend</small></button>
       </div>
       <div class="row">
         <button id="btnScores" class="ghost">🏆 High scores</button>
@@ -45,6 +30,29 @@
         <button id="btnHowto" class="ghost">❓ How to play</button>
         <button id="btnInstall" class="ghost" hidden>⬇ Install</button>
       </div>
+      <div class="row"><button id="btnMusic" class="ghost">🎵 Music: On</button></div>
+    </div>
+  </div>
+
+  <!-- Mode select (Classic Hero Volley / Volley Fight) -->
+  <div id="modeSel" class="overlay" hidden>
+    <div class="panel">
+      <h2 id="modeTitle">Classic Hero Volley</h2>
+      <p class="sub" id="modeSub"></p>
+      <div class="modes">
+        <button data-mode="duel"><span class="mi">🥊</span><b>1 : 1</b><small>Local duel</small></button>
+        <button data-mode="team"><span class="mi">🤝</span><b>2 : 2</b><small>Team vs CPU</small></button>
+        <button data-mode="solo"><span class="mi">🤖</span><b>1 vs CPU</b><small>Play solo</small></button>
+      </div>
+      <div class="opts">
+        <label>CPU level
+          <select id="level"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+        </label>
+        <label>Points to win
+          <select id="target"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
+        </label>
+      </div>
+      <div class="row"><button id="btnModeBack" class="ghost">Back</button></div>
     </div>
   </div>
 
@@ -77,7 +85,6 @@
   <div id="online" class="overlay" hidden>
     <div class="panel small-panel">
       <h2>🌐 Online 1 : 1</h2>
-      <p class="sub">Create a room and share the code – or enter a friend's code.</p>
       <div class="fields single" id="onFields">
         <div class="pcard c1">
           <div class="pbanner"><b>You</b><small>A D · W · Ctrl (or arrow keys)</small></div>
@@ -87,6 +94,14 @@
         </div>
       </div>
       <div id="onChoose">
+        <div class="opts">
+          <label>Rules
+            <select id="onRules"><option value="classic">Classic</option><option value="fight" selected>Volley Fight</option></select>
+          </label>
+          <label>Points to win
+            <select id="onTarget"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
+          </label>
+        </div>
         <div class="row">
           <button id="btnCreate">Create room</button>
           <input id="onCodeIn" class="codein" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE">
@@ -131,12 +146,12 @@
     <div class="panel">
       <h2>⌨ Controls</h2>
       <div class="keys">
-        <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
-        <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
+        <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> power-up / weapon</div>
+        <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> power-up / weapon</div>
         <div><b>1 vs CPU</b> WASD <i>or</i> arrow keys</div>
         <div><b>📱 Phone / tablet</b> on-screen buttons while you play: <kbd>◀</kbd><kbd>▶</kbd> move · <kbd>▲</kbd> jump · <kbd>⚡</kbd> use power-up · <kbd>⏸</kbd> menu. They always control Player 1 – hold the phone sideways.</div>
         <div class="small"><kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).</div>
-        <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd>–<kbd>4</kbd> pick a mode · arrow keys + Enter move through all menus</div>
+        <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd>–<kbd>3</kbd> pick in the menus · arrow keys + Enter move through all menus</div>
       </div>
       <div class="row"><button id="btnControlsBack">Back</button></div>
     </div>

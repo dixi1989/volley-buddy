@@ -28,7 +28,7 @@
   let duel = store.get('vb_duel', [0, 0]);
   const saveSettings = () => store.set('vb_settings', settings);
 
-  $('level').value = settings.level; $('target').value = String(settings.target); $('music').value = settings.music ? 'on' : 'off'; $('rules').value = settings.fight ? 'fight' : 'classic';
+  $('level').value = settings.level; $('target').value = String(settings.target); $('onRules').value = 'fight'; $('onTarget').value = String(settings.target);
 
   /* ------------------------------------------------------- touch controls */
   const touchMode = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || 'ontouchstart' in window;
@@ -40,7 +40,7 @@
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
   let online = null;            // online match state (see 'online play' below)
-  const MENU_PHASES = new Set(['menu', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto']);
+  const MENU_PHASES = new Set(['menu', 'mode', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto']);
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
@@ -111,6 +111,7 @@
   function setPhase(p) {
     phase = p;
     $('menu').hidden = p !== 'menu';
+    $('modeSel').hidden = p !== 'mode';
     $('setup').hidden = p !== 'setup';
     $('online').hidden = p !== 'online';
     $('scores').hidden = p !== 'scores';
@@ -121,13 +122,29 @@
     $('over').hidden = p !== 'over';
     // keyboard navigation: focus the first button of the end-of-match / pause dialog
     if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
-    const focusFirst = { menu: () => document.querySelector('#menu [data-mode]'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
+    const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
     if (focusFirst) { const e = focusFirst(); if (e) e.focus(); }
     $('touch').hidden = !(touchMode && p === 'play');
     if (p !== 'play') releaseTouchKeys();
   }
-  /* Arrow keys move the focus to the nearest control in that direction (all menus, dialogs, the hero select); Enter / Space presses it. */
-  const NAV_PHASES = new Set(['menu', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
+  /* ---- menu input, independent of the device ----
+   * Every menu action goes through uiAction('up' | 'down' | 'left' | 'right' | 'ok' | 'back'). The keyboard is wired below; a gamepad
+   * (d-pad / stick -> directions, A -> ok, B -> back) only has to call uiAction() as well, e.g. from a navigator.getGamepads() poll.
+   * In play, controls are read from the `keys` set via MAP.P1 / MAP.P2: a gamepad can add its own codes there like the Touch* ones. */
+  function uiAction(a) {
+    if (a === 'back') { uiBack(); return; }
+    if (a === 'ok') { const el = document.activeElement; if (el && el !== document.body && el.click) el.click(); return; }
+    navFocus(a);
+  }
+  function uiBack() {
+    if (phase === 'setup') setPhase('mode');
+    else if (phase === 'mode' || phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto') setPhase('menu');
+    else if (phase === 'online') { lobbyBusy(false); leaveOnline(); setPhase('menu'); }
+    else if (phase === 'play') openPause();
+    else if (phase === 'pause') setPhase('play');
+  }
+  /* Moves the focus to the nearest control in that direction (all menus, dialogs, the hero select). */
+  const NAV_PHASES = new Set(['menu', 'mode', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
   function navFocus(code) {
     const scope = document.querySelector('.overlay:not([hidden])');
     if (!scope) return;
@@ -136,7 +153,7 @@
     const cur = scope.contains(document.activeElement) ? document.activeElement : null;
     if (!cur) { els[0].focus(); return; }
     const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
-    const horiz = code === 'ArrowLeft' || code === 'ArrowRight', sgn = (code === 'ArrowLeft' || code === 'ArrowUp') ? -1 : 1;
+    const horiz = code === 'left' || code === 'right', sgn = (code === 'left' || code === 'up') ? -1 : 1;
     let best = null, bd = Infinity;
     for (const e of els) {
       if (e === cur) continue;
@@ -378,14 +395,13 @@
     audio(); startMusic();
     if (/^Arrow/.test(e.code) && NAV_PHASES.has(phase)) {
       const tag = e.target && e.target.tagName, horiz = e.code === 'ArrowLeft' || e.code === 'ArrowRight';
-      if (!(tag === 'INPUT' && horiz) && !(tag === 'SELECT' && !horiz)) { e.preventDefault(); if (!e.repeat) navFocus(e.code); return; }
+      if (!(tag === 'INPUT' && horiz) && !(tag === 'SELECT' && !horiz)) { e.preventDefault(); if (!e.repeat) uiAction(e.code.slice(5).toLowerCase()); return; }
     }
     const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
     if (typing) {
       if (phase === 'setup' && e.key === 'Enter' && e.target.tagName === 'INPUT') beginMatch();
-      else if (phase === 'setup' && e.key === 'Escape') setPhase('menu');
+      else if (e.key === 'Escape' && (phase === 'setup' || phase === 'online')) uiBack();
       else if (phase === 'online' && e.key === 'Enter' && e.target.id === 'onCodeIn') $('btnJoin').click();
-      else if (phase === 'online' && e.key === 'Escape') leaveOnline();
       return;
     }
     if (phase === 'play' || phase === 'pause') {
@@ -395,20 +411,21 @@
     if (e.repeat) { keys.add(e.code); return; }
     keys.add(e.code);
     if (e.code === 'KeyM') { settings.muted = !settings.muted; saveSettings(); musicGain(); }
-    if (e.code === 'KeyN') { settings.music = !settings.music; $('music').value = settings.music ? 'on' : 'off'; saveSettings(); musicGain(); }
-    if (e.code === 'Escape' && (phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto')) setPhase('menu');
+    if (e.code === 'KeyN') toggleMusic();
+    if (e.code === 'Escape') uiBack();
     if (e.code === 'KeyF') {
       try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (err) { /* not allowed */ }
     }
-    if (phase === 'play' && (e.code === 'KeyP' || e.code === 'Escape')) openPause();
-    else if (phase === 'pause' && (e.code === 'KeyP' || e.code === 'Escape')) setPhase('play');
-    else if (phase === 'online' && e.code === 'Escape') leaveOnline();
-    else if (phase === 'setup' && e.code === 'Escape') setPhase('menu');
+    if (phase === 'play' && e.code === 'KeyP') openPause();
+    else if (phase === 'pause' && e.code === 'KeyP') setPhase('play');
     if (phase === 'menu') {
+      if (e.code === 'Digit1') openModes('classic');
+      if (e.code === 'Digit2') openModes('fight');
+      if (e.code === 'Digit3') $('btnOnline').click();
+    } else if (phase === 'mode') {
       if (e.code === 'Digit1') openSetup('duel');
       if (e.code === 'Digit2') openSetup('team');
       if (e.code === 'Digit3') openSetup('solo');
-      if (e.code === 'Digit4') $('btnOnline').click();
     }
   });
   addEventListener('pointerdown', () => { audio(); startMusic(); });
@@ -434,6 +451,12 @@
   }
 
   /* --------------------------------------------------------- player names */
+  function openModes(rules) {
+    settings.fight = rules === 'fight'; saveSettings();
+    $('modeTitle').textContent = settings.fight ? 'Volley Fight' : 'Classic Hero Volley';
+    $('modeSub').textContent = settings.fight ? 'Every hero has a weapon – press the special key to smash the ball.' : 'Classic rules with power-ups.';
+    setPhase('mode');
+  }
   function openSetup(mode) {
     setupMode = mode;
     $('name1').value = names.p1; $('name2').value = names.p2;
@@ -452,7 +475,7 @@
     const clean = v => (v || '').replace(/\s+/g, ' ').trim().slice(0, 12);
     const n1 = clean($('name1').value), n2 = clean($('name2').value);
     names.p1 = n1; names.p2 = n2; store.set('vb_names', names);
-    settings.level = $('level').value; settings.target = +$('target').value; settings.fight = $('rules').value === 'fight'; saveSettings();
+    settings.level = $('level').value; settings.target = +$('target').value; saveSettings();
     startGame(setupMode, n1 || (setupMode === 'solo' ? 'You' : 'Player 1'), n2 || 'Player 2');
   }
 
@@ -519,7 +542,9 @@
   /* ------------------------------------------------------------- UI buttons */
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => openSetup(b.dataset.mode)));
   $('btnStart').onclick = beginMatch;
-  $('btnSetupBack').onclick = () => setPhase('menu');
+  $('btnSetupBack').onclick = () => setPhase('mode');
+  $('btnModeBack').onclick = () => setPhase('menu');
+  document.querySelectorAll('[data-rules]').forEach(b => b.addEventListener('click', () => openModes(b.dataset.rules)));
   $('btnScores').onclick = () => { renderScores(); setPhase('scores'); };
   $('btnScoresBack').onclick = () => setPhase('menu');
   const PU_INFO = [
@@ -544,7 +569,9 @@
   $('btnControlsBack').onclick = () => setPhase('menu');
   $('btnHowto').onclick = () => setPhase('howto');
   $('btnHowtoBack').onclick = () => setPhase('menu');
-  $('music').onchange = () => { settings.music = $('music').value === 'on'; saveSettings(); musicGain(); startMusic(); };
+  function toggleMusic() { settings.music = !settings.music; saveSettings(); musicGain(); startMusic(); $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off'); }
+  $('btnMusic').onclick = toggleMusic;
+  $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off');
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
     const btn = $('btnScoresClear');
@@ -559,7 +586,7 @@
     startGame(lastSetup.mode, lastSetup.p1, lastSetup.p2);
   };
   $('btnMenu').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
-  $('level').onchange = $('target').onchange = $('rules').onchange = () => { settings.level = $('level').value; settings.target = +$('target').value; settings.fight = $('rules').value === 'fight'; saveSettings(); };
+  $('level').onchange = $('target').onchange = () => { settings.level = $('level').value; settings.target = +$('target').value; saveSettings(); };
 
   let installEvt = null;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
@@ -723,6 +750,7 @@
   }
 
   function createRoom() {
+    settings.fight = $('onRules').value === 'fight'; settings.target = +$('onTarget').value; saveSettings(); $('target').value = String(settings.target);
     const me = myLook(); lobbyBusy(true); onlineStatus('Opening a room…');
     online = { role: 'host', me, gid: 0, seq: 0, rin: { m: 0, jc: 0, sc: 0, rm: 0 }, seenJc: 0, seenSc: 0, myRm: false };
     Net.host({
