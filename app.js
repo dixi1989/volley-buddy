@@ -4,7 +4,13 @@
   const { C, Sim, LEVELS } = VB;
   const { Net } = VBNet;
   const $ = id => document.getElementById(id);
-  const canvas = $('game'), ctx = canvas.getContext('2d');
+  const canvas = $('game'), mainCtx = canvas.getContext('2d');
+  let ctx = mainCtx;            // the world is drawn into a small canvas (pixel look), HUD and name tags into the big one
+  const PIX = 2;                // size of one "pixel" in game units (2 = fine pixels, 3 = chunkier)
+  const lo = document.createElement('canvas'); lo.width = C.W / PIX; lo.height = C.H / PIX;
+  const loCtx = lo.getContext('2d');
+  const FONT = '"Jersey 10", system-ui, sans-serif';
+  try { document.fonts.load('700 14px "Jersey 10"'); } catch (e) { /* ignore */ }
 
   /* ------------------------------------------------------------- storage */
   const store = {
@@ -24,6 +30,12 @@
 
   $('level').value = settings.level; $('target').value = String(settings.target); $('music').value = settings.music ? 'on' : 'off';
 
+  /* ------------------------------------------------------- touch controls */
+  const touchMode = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || 'ontouchstart' in window;
+  const keys = new Set();
+  const TOUCH_BTNS = [...document.querySelectorAll('#touch [data-k]')];
+  function releaseTouchKeys() { TOUCH_BTNS.forEach(b => { keys.delete(b.dataset.k); b.classList.remove('on'); }); }
+
   /* --------------------------------------------------------------- state */
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
@@ -32,26 +44,51 @@
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
-  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm' }, p2: { color: PALETTE[6][1], gender: 'm' } }, store.get('vb_looks', {}));
-  function renderLooks() {
-    ['p1', 'p2'].forEach((slot, n) => {
-      const box = $('look' + (n + 1)), other = looks[slot === 'p1' ? 'p2' : 'p1'];
-      const twoPlayers = setupMode !== 'solo';
-      box.innerHTML = '';
-      PALETTE.forEach(([name, col]) => {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name;
-        if (looks[slot].color === col) b.classList.add('sel');
-        if (twoPlayers && other.color === col) b.classList.add('taken');
-        b.onclick = () => { if (twoPlayers && other.color === col) return; looks[slot].color = col; store.set('vb_looks', looks); renderLooks(); };
-        box.appendChild(b);
-      });
-      const gap = document.createElement('span'); gap.className = 'gap'; box.appendChild(gap);
-      [['m', '♂ Male'], ['f', '♀ Female']].forEach(([g, label]) => {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (looks[slot].gender === g ? ' sel' : ''); b.textContent = label;
-        b.onclick = () => { looks[slot].gender = g; store.set('vb_looks', looks); renderLooks(); };
-        box.appendChild(b);
-      });
+  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'gummy' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'gummy' } }, store.get('vb_looks', {}));
+  ['p1', 'p2'].forEach(k => { if (looks[k].style !== 'pixel') looks[k].style = 'gummy'; });
+  /* name / figure / colour picker used by the setup screen and the online lobby */
+  const FIGURES = [['gummy', '🧸 Gummy Bear'], ['pixel', '🧍 Pixel Hero']];
+  const previews = [{ c: $('prev1'), slot: 'p1' }, { c: $('prev2'), slot: 'p2' }, { c: $('prevOn'), slot: 'p1' }];
+  function fillLook(box, slot, other, rerender) {
+    const me = looks[slot], oth = other ? looks[other] : null;
+    box.innerHTML = '';
+    const r1 = document.createElement('div'); r1.className = 'lrow';
+    FIGURES.forEach(([id, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.style === id ? ' sel' : ''); b.textContent = label;
+      b.onclick = () => { me.style = id; store.set('vb_looks', looks); rerender(); };
+      r1.appendChild(b);
     });
+    const gap = document.createElement('span'); gap.className = 'gap'; r1.appendChild(gap);
+    [['m', '♂'], ['f', '♀']].forEach(([g, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.textContent = label; b.title = g === 'm' ? 'Male' : 'Female';
+      b.onclick = () => { me.gender = g; store.set('vb_looks', looks); rerender(); };
+      r1.appendChild(b);
+    });
+    const r2 = document.createElement('div'); r2.className = 'lrow';
+    PALETTE.forEach(([name, col]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (me.style === 'pixel' ? ' swimwear' : '');
+      if (me.color === col) b.classList.add('sel');
+      if (oth && oth.color === col) b.classList.add('taken');
+      b.onclick = () => { if (oth && oth.color === col) return; me.color = col; store.set('vb_looks', looks); rerender(); };
+      r2.appendChild(b);
+    });
+    box.append(r1, r2);
+  }
+  function renderLooks() {
+    const two = setupMode !== 'solo';
+    fillLook($('look1'), 'p1', two ? 'p2' : null, renderLooks);
+    fillLook($('look2'), 'p2', 'p1', renderLooks);
+  }
+  /* animated previews of the chosen figures (low-res canvas, same pixel size as in the game) */
+  function drawPreviews(t) {
+    if (phase !== 'setup' && phase !== 'online') return;
+    for (const p of previews) {
+      if (!p.c.offsetParent) continue;
+      const c = p.c.getContext('2d');
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 44, 44);
+      c.setTransform(1 / PIX, 0, 0, 1 / PIX, 22, 22 - (C.GROUND - C.BLOB_R - 2) / PIX);
+      Scene.preview(c, looks[p.slot], t);
+    }
   }
 
   function setPhase(p) {
@@ -67,6 +104,8 @@
     $('over').hidden = p !== 'over';
     // keyboard navigation: focus the first button of the end-of-match / pause dialog
     if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
+    $('touch').hidden = !(touchMode && p === 'play');
+    if (p !== 'play') releaseTouchKeys();
   }
   /* arrow keys move the focus between the buttons of the end-of-match / pause dialog (Enter or Space presses it) */
   function moveDialogFocus(dir) {
@@ -84,7 +123,7 @@
     canvas.style.height = Math.floor(C.H * k) + 'px';
     canvas.width = Math.round(C.W * k * dpr);
     canvas.height = Math.round(C.H * k * dpr);
-    ctx.setTransform(canvas.width / C.W, 0, 0, canvas.height / C.H, 0, 0);
+    mainCtx.setTransform(canvas.width / C.W, 0, 0, canvas.height / C.H, 0, 0);
     $('stage').style.setProperty('--k', Math.floor(C.W * k) / C.W);
   }
   addEventListener('resize', resize); resize();
@@ -284,9 +323,8 @@
   }
 
   /* --------------------------------------------------------------- input */
-  const keys = new Set();
   const MAP = {
-    P1: { left: ['KeyA'], right: ['KeyD'], jump: ['KeyW'], special: ['ControlLeft', 'ShiftLeft'] },
+    P1: { left: ['KeyA', 'TouchLeft'], right: ['KeyD', 'TouchRight'], jump: ['KeyW', 'TouchJump'], special: ['ControlLeft', 'ShiftLeft', 'TouchSpecial'] },
     P2: { left: ['ArrowLeft'], right: ['ArrowRight'], jump: ['ArrowUp'], special: ['ControlRight', 'ShiftRight', 'Numpad0'] }
   };
   const any = arr => arr.some(c => keys.has(c));
@@ -338,6 +376,17 @@
     }
   });
   addEventListener('pointerdown', () => { audio(); startMusic(); });
+  TOUCH_BTNS.forEach(btn => {
+    const code = btn.dataset.k;
+    const on = () => { keys.add(code); btn.classList.add('on'); };
+    const off = () => { keys.delete(code); btn.classList.remove('on'); };
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); try { btn.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ } on(); });
+    btn.addEventListener('pointerover', e => { if (e.buttons) on(); });      // sliding a finger from one button to the next
+    ['pointerup', 'pointercancel', 'pointerout'].forEach(ev => btn.addEventListener(ev, off));
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+  });
+  $('btnTouchPause').addEventListener('pointerdown', e => { e.preventDefault(); if (phase === 'play') openPause(); });
+  if (touchMode) document.body.classList.add('touch');
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => { keys.clear(); if (phase === 'play' && !online) setPhase('pause'); });   // online: the match cannot be paused
   addEventListener('beforeunload', e => { if (phase === 'play' || phase === 'pause') { e.preventDefault(); e.returnValue = ''; } });
@@ -373,11 +422,11 @@
   /* --------------------------------------------------------- start a match */
   function startGame(mode, p1, p2) {
     lastSetup = { mode, p1, p2 };
-    const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, gender: looks[slot].gender, label });
+    const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, gender: looks[slot].gender, style: looks[slot].style, label });
     const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
     const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU bears take colors nobody chose
     let ci = 0;
-    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', label: 'CPU' });
+    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', style: Math.random() < 0.5 ? 'pixel' : 'gummy', label: 'CPU' });
     let teams, tn;
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
@@ -515,17 +564,17 @@
     const names = g.teamNames || ['', ''];
     const cols = [g.blobs[0].color, g.blobs[g.blobs.length - 1].color];
     ctx.fillStyle = 'rgba(26,10,61,.7)'; rr(300, 8, 200, 52, 12); ctx.fill();
-    ctx.textAlign = 'center'; ctx.font = '800 32px system-ui,sans-serif';
+    ctx.textAlign = 'center'; ctx.font = '800 32px ' + FONT;
     ctx.fillStyle = cols[0]; ctx.fillText(g.score[0], 348, 44);
     ctx.fillStyle = cols[1]; ctx.fillText(g.score[1], 452, 44);
-    ctx.fillStyle = '#fff'; ctx.font = '700 18px system-ui'; ctx.fillText(':', 400, 41);
-    ctx.font = '600 10px system-ui'; ctx.fillStyle = '#9fe0ec'; ctx.fillText('to ' + g.target, 400, 55);
+    ctx.fillStyle = '#fff'; ctx.font = '700 18px ' + FONT; ctx.fillText(':', 400, 41);
+    ctx.font = '600 10px ' + FONT; ctx.fillStyle = '#9fe0ec'; ctx.fillText('to ' + g.target, 400, 55);
     // serve marker
     const sx = g.serving === 0 ? 318 : 482;
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, 22, 5, 0, 7); ctx.fill();
     ctx.strokeStyle = '#ee1a8c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 5, 22); ctx.lineTo(sx + 5, 22); ctx.stroke();
     // team names
-    ctx.font = '700 13px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(names[0], 14, 24, 150);
+    ctx.font = '700 13px ' + FONT; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(names[0], 14, 24, 150);
     ctx.textAlign = 'right'; ctx.fillText(names[1], C.W - 14, 24, 150);
     // touches (3 dots per side)
     for (let tm = 0; tm < 2; tm++) {
@@ -546,7 +595,7 @@
         if (filled) Scene.drawItemIcon(ctx, inv[i], cx, cy + 1, 22);
       }
       if (hasHuman && inv.length) {
-        ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
+        ctx.font = '700 10px ' + FONT; ctx.textAlign = 'center';
         ctx.fillStyle = `rgba(255,120,200,${0.75 + 0.25 * Math.sin(t * 6)})`;
         ctx.fillText(g.mode === 'duel' && tm === 1 ? 'R-Ctrl' : 'Ctrl', tm === 0 ? 270 : 530, 59);
       }
@@ -561,31 +610,40 @@
         Scene.drawItemIcon(ctx, f.icon, x + 11, y + 8.5, 15);
         ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 23, y + 6, 58, 5);
         ctx.fillStyle = f.left < 180 ? '#ff9d8a' : (f.good ? '#69cbdc' : '#ff4fa3'); ctx.fillRect(x + 23, y + 6, 58 * f.left / f.max, 5);
-        ctx.font = '700 10px system-ui'; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
+        ctx.font = '700 10px ' + FONT; ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
         ctx.fillText(Math.ceil(f.left / 60) + 's', x + 100, y + 12);
       });
     }
-    if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }
+    if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px ' + FONT; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }
     // messages
     ctx.textAlign = 'center';
     if (g.state === 'serve' && phase !== 'menu') {
-      ctx.font = '700 22px system-ui'; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 4;
+      ctx.font = '700 22px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 4;
       const txt = `Serve: ${names[g.serving]}`; ctx.strokeText(txt, 400, 112); ctx.fillText(txt, 400, 112);
     } else if (g.messageTimer > 0 && g.message) {
-      ctx.font = '800 28px system-ui'; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 5;
+      ctx.font = '800 28px ' + FONT; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 5;
       ctx.strokeText(g.message, 400, 112); ctx.fillText(g.message, 400, 112);
     }
   }
 
   function render(t) {
     const g = game || demo;
+    ctx = loCtx; ctx.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0);
     Scene.drawBackground(ctx, t);
+    if (g) {
+      g._ballRot = g._ballRot || { rot: 0 };
+      Scene.drawTowels(ctx, g, t);
+      for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
+      g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
+      drawBall(g.ball, g._ballRot);
+    }
+    // pixel look: scale the small world canvas up without smoothing, then draw crisp text on top
+    ctx = mainCtx;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(lo, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
     if (!g) return;
-    g._ballRot = g._ballRot || { rot: 0 };
-    Scene.drawTowels(ctx, g, t);
-    for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
-    g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
-    drawBall(g.ball, g._ballRot);
+    g.blobs.forEach(b => Scene.drawLabel(ctx, b));
     if (!MENU_PHASES.has(phase)) drawHUD(g, t);
   }
 
@@ -597,18 +655,7 @@
   const otherColor = c => (PALETTE.find(p => p[1] !== c) || PALETTE[1])[1];
 
   function renderOnlineLook() {
-    const box = $('onLook'); box.innerHTML = '';
-    PALETTE.forEach(([name, col]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (looks.p1.color === col ? ' sel' : ''); b.style.background = col; b.title = name;
-      b.onclick = () => { looks.p1.color = col; store.set('vb_looks', looks); renderOnlineLook(); };
-      box.appendChild(b);
-    });
-    const gap = document.createElement('span'); gap.className = 'gap'; box.appendChild(gap);
-    [['m', '♂ Male'], ['f', '♀ Female']].forEach(([g, label]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (looks.p1.gender === g ? ' sel' : ''); b.textContent = label;
-      b.onclick = () => { looks.p1.gender = g; store.set('vb_looks', looks); renderOnlineLook(); };
-      box.appendChild(b);
-    });
+    fillLook($('onLook'), 'p1', null, renderOnlineLook);
   }
   function onlineStatus(text) { $('onStatus').textContent = text || ''; }
   function showLobby(text, code) {
@@ -628,7 +675,7 @@
   }
   function myLook() {
     names.p1 = cleanName($('onName').value); store.set('vb_names', names);
-    return { n: names.p1, c: looks.p1.color, g: looks.p1.gender };
+    return { n: names.p1, c: looks.p1.color, g: looks.p1.gender, s: looks.p1.style };
   }
   function lobbyBusy(on) { $('btnCreate').disabled = $('btnJoin').disabled = on; }
 
@@ -664,7 +711,7 @@
     Net.join(code, {
       onOpen() {
         onlineStatus('Connected – waiting for the host…');
-        const hello = () => Net.send({ t: 'h', n: me.n, c: me.c, g: me.g });
+        const hello = () => Net.send({ t: 'h', n: me.n, c: me.c, g: me.g, s: me.s });
         hello(); online.helloTimer = setInterval(hello, 300);     // unreliable channel: repeat until the first snapshot arrives
       },
       onData(m) { if (online && m.t === 's') guestReceive(m); },
@@ -676,7 +723,7 @@
   /* ---- host ---- */
   function hostStartMatch(h) {
     const mine = online.me;
-    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm' };
+    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm', style: h.s === 'pixel' ? 'pixel' : 'gummy' };
     if (online.guest.color === mine.c) online.guest.color = otherColor(mine.c);
     newOnlineGame();
   }
@@ -685,8 +732,8 @@
     const hn = mine.n || 'Host';
     online.gid++; online.seq = 0; online.myRm = false;
     online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
-    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], target: settings.target };
-    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, label: gu.name }]], level: 'normal', target: settings.target });
+    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], styles: [mine.s, gu.style], target: settings.target };
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target });
     game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
     setPhase('play');
   }
@@ -695,7 +742,7 @@
   function buildGuestGame(cfg) {
     online.gid = cfg.gid; online.lastQ = -1; online.q.length = 0; online.pendEv.length = 0; online.primed = false; online.myRm = false;
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
-    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', label: cleanName(cfg.names[i]) });
+    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', style: cfg.styles && cfg.styles[i] === 'pixel' ? 'pixel' : 'gummy', label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
     game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
@@ -798,6 +845,7 @@
       }
     }
     render(now / 1000);
+    drawPreviews(now / 1000);
     requestAnimationFrame(frame);
   }
   setPhase('menu');

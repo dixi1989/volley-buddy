@@ -85,11 +85,12 @@
 
   /* ---------------------------------------------------------------- Blob */
   class Blob {
-    constructor(id, team, homeX, controller, color, label, gender) {
+    constructor(id, team, homeX, controller, color, label, gender, style) {
       this.id = id; this.team = team; this.homeX = homeX;
       this.controller = controller; // 'human' | 'ai'
       this.color = color; this.label = label;
       this.gender = gender === 'f' ? 'f' : 'm';   // looks only: swim trunks or bikini
+      this.style = style === 'pixel' ? 'pixel' : 'gummy';   // looks only: gummy bear or pixel person
       this.aura = false;
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = 0; this.vy = 0;
@@ -196,7 +197,7 @@
         const hs = homes(team.length);
         team.forEach((spec, i) => {
           const hx = t === 0 ? C.NET_X * hs[i] : C.NET_X + C.NET_X * hs[i];
-          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.gender);
+          const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.gender, spec.style);
           if (spec.controller === 'ai') b.ai = new AI(b, this, this.level);
           this.blobs.push(b);
         });

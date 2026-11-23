@@ -1,8 +1,8 @@
 /* Beach Volley Buddy service worker: app shell available offline.
  * Bump VERSION whenever any file changes. */
-const VERSION = 'vb-v19';
+const VERSION = 'vb-v20';
 const SHELL = [
-  './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'net.js', 'app.js', 'vendor/peerjs.min.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'engine.js', 'scene.js', 'net.js', 'app.js', 'vendor/peerjs.min.js', 'vendor/fonts/jersey-10-latin-400-normal.woff2', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
 ];
 

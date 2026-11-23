@@ -49,7 +49,7 @@
     ctx.closePath();
   }
 
-  function drawBlob(ctx, b, ball, t) {
+  function drawGummy(ctx, b, ball, t) {
     const R = C.BLOB_R, j = jstate(b);
     // ground shadow
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
@@ -201,11 +201,111 @@
 
     ctx.restore();
 
-    // name tag
-    ctx.font = '700 11px system-ui,sans-serif'; ctx.textAlign = 'center';
-    const ly = b.y - R - 9 - (b.alman ? 11 : 0);   // sit above the hat
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(b.label, b.x, ly, 96);
-    ctx.fillStyle = 'rgba(10,25,45,.85)'; ctx.fillText(b.label, b.x, ly, 96);
+  }
+
+
+  /* ------------------------------------------------------ Pixel person */
+  /* Blocky pixel figure on a 2 px grid (so it stays crisp in the low-res pixel renderer). The bear colour is the swimwear colour. */
+  const OUT = '#2a1740';
+  const SKIN = { m: ['#d99a63', '#b57545'], f: ['#f1bf98', '#d4946b'] };
+  const HAIR = { m: ['#4a2d18', '#2e1a0d'], f: ['#e6b035', '#b8821c'] };
+
+  function drawPerson(ctx, b, ball, t) {
+    const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f';
+    const hgt = Math.max(0, (C.GROUND - R) - b.y);
+    ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
+    ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
+
+    const gx = Math.round(b.x / 2) * 2, gy = Math.round(b.y / 2) * 2;
+    const moving = Math.abs(b.vx) > 0.1, air = !b.onGround;
+    const ph = Math.floor(t * 9 + b.id) % 2;                          // walk cycle
+    const cy = j.sq > 0.16 ? 2 : (j.sq < -0.14 ? -2 : 0);              // crouch on landing, stretch on take-off
+    const sk = SKIN[fem ? 'f' : 'm'], hr = HAIR[fem ? 'f' : 'm'], col = b.color;
+    const dark = shade(col, -0.38), light = shade(col, 0.4);
+    ctx.save(); ctx.translate(gx, gy);
+    if (b.aura) {                                                      // Aura+10: glowing ring showing the enlarged hit box
+      const ar = R * 1.3, pulse = 0.85 + 0.15 * sin(t * 6);
+      ctx.strokeStyle = `rgba(255,236,140,${0.8 * pulse})`; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.lineDashOffset = -t * 20;
+      ctx.beginPath(); ctx.arc(0, 0, ar, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(255,225,90,${0.12 * pulse})`; ctx.beginPath(); ctx.arc(0, 0, ar, 0, TAU); ctx.fill();
+    }
+    const fill = [], ol = [];
+    const part = (x, y, w, h, c, outline) => { fill.push([x, y, w, h, c]); if (outline) ol.push([x, y, w, h]); };
+
+    // legs
+    const lift = s => (air ? 2 : (moving && ph === s ? 2 : 0));
+    [[-11, 0], [1, 1]].forEach(([x, s]) => {
+      const h = 14 - cy - lift(s);
+      part(x, 16 + cy, 10, h, sk[0], true); part(x + 8, 16 + cy, 2, h, sk[1]);
+    });
+    // torso
+    part(-12, -2 + cy, 24, 18, sk[0], true); part(10, -2 + cy, 2, 18, sk[1]);
+    // arms (raised when jumping, swinging when running)
+    [[-20, 0], [12, 1]].forEach(([x, s]) => {
+      const off = air ? -14 : (moving ? ((s + ph) % 2 ? 2 : -2) : 0);
+      part(x, -2 + cy + off, 8, 18, sk[0], true); part(x + (s ? 6 : 0), -2 + cy + off, 2, 18, sk[1]);
+    });
+    // head
+    part(-12, -26 + cy, 24, 24, sk[0], true); part(10, -26 + cy, 2, 24, sk[1]); part(-12, -4 + cy, 24, 2, sk[1]);
+    // hair: short for him, long with a bow for her
+    part(-12, -26 + cy, 24, 8, hr[0], false); part(-8, -20 + cy, 16, 2, hr[0], false);
+    part(-12, -18 + cy, 4, fem ? 22 : 6, hr[0], false); part(8, -18 + cy, 4, fem ? 22 : 6, hr[0], false);
+    part(-12, -22 + cy, 24, 2, hr[1], false);
+    if (fem) { part(-12, -30 + cy, 8, 6, col, true); part(-10, -28 + cy, 4, 2, light, false); }
+    // face: eyes follow the ball
+    const dx = ball.x - b.x, dy = ball.y - b.y;
+    const ox = dx > 10 ? 2 : (dx < -10 ? 0 : 1), oy = dy < -30 ? 0 : 2;
+    [-8, 4].forEach(x => { part(x, -16 + cy, 4, 6, '#fff', false); part(x + ox, -16 + cy + oy, 2, 4, '#1b2230', false); });
+    if (!fem) { part(-8, -18 + cy, 4, 2, hr[1], false); part(4, -18 + cy, 4, 2, hr[1], false); }
+    else { part(-10, -8 + cy, 4, 2, '#f08a9a', false); part(6, -8 + cy, 4, 2, '#f08a9a', false); }
+    part(-2, -10 + cy, 4, 2, sk[1], false); part(-4, -6 + cy, 8, 2, '#8a3a3a', false);
+    // swimwear in the player's colour
+    if (!fem) {
+      part(-12, 8 + cy, 24, 2, dark, false); part(-12, 10 + cy, 24, 6, col, false); part(-12, 12 + cy, 24, 2, light, false);
+      [-11, 1].forEach(x => { part(x, 16 + cy, 10, 6, col, false); part(x, 20 + cy, 10, 2, dark, false); });
+    } else {
+      part(-10, 2 + cy, 8, 6, col, false); part(2, 2 + cy, 8, 6, col, false); part(-10, 2 + cy, 2, 2, light, false); part(2, 2 + cy, 2, 2, light, false);
+      part(-8, -2 + cy, 2, 4, col, false); part(6, -2 + cy, 2, 4, col, false); part(-2, 4 + cy, 4, 2, dark, false);
+      part(-10, 10 + cy, 20, 2, col, false); part(-8, 12 + cy, 16, 2, col, false); part(-6, 14 + cy, 12, 2, col, false);
+      part(-12, 10 + cy, 2, 2, col, false); part(10, 10 + cy, 2, 2, col, false); part(-10, 10 + cy, 2, 2, light, false);
+    }
+    // Alman Mode: white socks in sandals
+    if (b.alman) {
+      [[-11, 0], [1, 1]].forEach(([x, s]) => {
+        const bot = 30 - lift(s);
+        part(x, bot - 8, 10, 6, '#ffffff', false); part(x, bot - 6, 10, 2, '#7b4a22', false); part(x - 2, bot - 2, 14, 2, '#7b4a22', false);
+      });
+    }
+    // Aura+10: sunglasses
+    if (b.aura) {
+      part(-10, -17 + cy, 9, 7, '#10151f', true); part(1, -17 + cy, 9, 7, '#10151f', true); part(-1, -16 + cy, 2, 2, '#10151f', false);
+      part(-8, -16 + cy, 3, 2, '#7da2e6', false); part(3, -16 + cy, 3, 2, '#7da2e6', false);
+      part(-12, -16 + cy, 2, 2, '#10151f', false); part(10, -16 + cy, 2, 2, '#10151f', false);
+    }
+    ctx.fillStyle = OUT;
+    ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
+    fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
+    // Alman Mode: bucket hat with little German flags
+    if (b.alman) { ctx.save(); ctx.translate(0, -22 + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
+    ctx.restore();
+  }
+
+  function drawLabel(ctx, b) {
+    ctx.font = '700 12px "Jersey 10", system-ui, sans-serif'; ctx.textAlign = 'center';
+    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0);   // sit above the hat
+    ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.strokeText(b.label, b.x, ly, 96);
+    ctx.fillStyle = 'rgba(30,12,60,.95)'; ctx.fillText(b.label, b.x, ly, 96);
+  }
+
+  function drawBlob(ctx, b, ball, t) {
+    if (b.style === 'pixel') { drawPerson(ctx, b, ball, t); return; }
+    drawGummy(ctx, b, ball, t);
+  }
+
+  /* A figure for the selection screens (no ball, standing still) */
+  function preview(ctx, spec, t) {
+    const b = { x: 0, y: C.GROUND - C.BLOB_R - 2, vx: 0, vy: 0, id: 0, team: 0, label: '', color: spec.color, gender: spec.gender, style: spec.style, onGround: true, alman: false, aura: false };
+    drawBlob(ctx, b, { x: 80, y: b.y - 40 }, t);
   }
 
   /* ------------------------------------------------------ Background */
@@ -520,5 +620,5 @@
   }
   const C_TOWEL = C.TOWEL_FRAMES;
 
-  root.Scene = { drawBackground, drawBlob, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
+  root.Scene = { drawBackground, drawBlob, drawLabel, preview, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
 })(typeof self !== 'undefined' ? self : this);

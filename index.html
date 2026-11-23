@@ -52,14 +52,20 @@
       <h2 id="setupTitle">Who is playing?</h2>
       <div class="fields">
         <div id="row1" class="prow">
-          <label><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
-            <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-          <div class="look" id="look1"></div>
+          <canvas class="prev" id="prev1" width="44" height="44"></canvas>
+          <div class="pcol">
+            <label><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
+              <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+            <div class="look" id="look1"></div>
+          </div>
         </div>
         <div id="row2" class="prow">
-          <label><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
-            <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-          <div class="look" id="look2"></div>
+          <canvas class="prev" id="prev2" width="44" height="44"></canvas>
+          <div class="pcol">
+            <label><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
+              <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+            <div class="look" id="look2"></div>
+          </div>
         </div>
       </div>
       <div class="row">
@@ -76,9 +82,12 @@
       <p class="sub">Create a room and send the code to a friend – or enter a friend's code.</p>
       <div class="fields" id="onFields">
         <div class="prow">
-          <label><span class="t"><b>Your name</b> <small>A D · W · Ctrl (or arrow keys)</small></span>
-            <input id="onName" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-          <div class="look" id="onLook"></div>
+          <canvas class="prev" id="prevOn" width="44" height="44"></canvas>
+          <div class="pcol">
+            <label><span class="t"><b>Your name</b> <small>A D · W · Ctrl (or arrow keys)</small></span>
+              <input id="onName" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+            <div class="look" id="onLook"></div>
+          </div>
         </div>
       </div>
       <div id="onChoose">
@@ -115,7 +124,7 @@
   <div id="powerups" class="overlay" hidden>
     <div class="panel">
       <h2>⚡ Power-ups</h2>
-      <p class="sub">Every 30 s each player gets one falling from the sky – catch it (max. 3 stored), then press Ctrl to use it.</p>
+      <p class="sub">Every 30 s each player gets one falling from the sky – catch it (max. 3 stored), then press Ctrl (phone: the ⚡ button) to use it.</p>
       <div id="puList" class="pulist"></div>
       <div class="row"><button id="btnPowerupsBack">Back</button></div>
     </div>
@@ -129,6 +138,7 @@
         <div><b>Player 1</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>Ctrl</kbd> use power-up</div>
         <div><b>Player 2</b> <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>Right Ctrl</kbd> use power-up</div>
         <div><b>1 vs CPU</b> WASD <i>or</i> arrow keys</div>
+        <div><b>📱 Phone / tablet</b> on-screen buttons while you play: <kbd>◀</kbd><kbd>▶</kbd> move · <kbd>▲</kbd> jump · <kbd>⚡</kbd> use power-up · <kbd>⏸</kbd> menu. They always control Player 1 – hold the phone sideways.</div>
         <div class="small"><kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).</div>
         <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pick a mode in the menu</div>
       </div>
@@ -147,11 +157,26 @@
         <li><b>Three touches:</b> each team may hit the ball up to 3 times in a row. A 4th touch is a fault.</li>
         <li><b>Serve:</b> the ball hangs in the air for a moment and then drops by itself – but you can hit it right away.</li>
         <li><b>Modes:</b> 1 : 1 on one keyboard, 2 : 2 with two humans against two CPU bears, or 1 : 1 against the CPU (Easy / Normal / Hard).</li>
+        <li><b>Phone:</b> play sideways. Use the buttons at the bottom: ◀ ▶ to move, ▲ to jump, ⚡ for power-ups, ⏸ for the menu. Add the game to your home screen (Install) for full screen.</li>
+        <li><b>Figures:</b> before each match pick your name, figure (Gummy Bear or Pixel Hero), look (male / female) and colour. For the Pixel Hero the colour is the swimwear.</li>
         <li><b>Online:</b> one player creates a room and shares the 4-letter code (or the invite link), the other joins. The host's browser runs the game, so the host should keep the tab in the foreground.</li>
         <li><b>Power-ups:</b> every 30 s each player gets one falling from the sky. Catch it with your bear (3 can be stored), then press Ctrl to use it. See the Power-ups page for what they do.</li>
         <li><b>High scores:</b> wins against the CPU count – points = lead × 100 × level factor + longest rally × 10.</li>
       </ul>
       <div class="row"><button id="btnHowtoBack">Back</button></div>
+    </div>
+  </div>
+
+  <!-- Touch controls (phones / tablets) -->
+  <div id="touch" hidden>
+    <div class="tgroup tl">
+      <button class="tb" data-k="TouchLeft" aria-label="Move left"><span>◀</span><small>LEFT</small></button>
+      <button class="tb" data-k="TouchRight" aria-label="Move right"><span>▶</span><small>RIGHT</small></button>
+    </div>
+    <button class="tb tp" id="btnTouchPause" aria-label="Menu"><span>⏸</span></button>
+    <div class="tgroup tr">
+      <button class="tb" data-k="TouchSpecial" aria-label="Use power-up"><span>⚡</span><small>POWER-UP</small></button>
+      <button class="tb big" data-k="TouchJump" aria-label="Jump"><span>▲</span><small>JUMP</small></button>
     </div>
   </div>
 
@@ -179,6 +204,7 @@
     </div>
   </div>
 </div>
+<div id="rotate">↻ Turn your phone sideways for a bigger game</div>
 <script src="vendor/peerjs.min.js"></script>
 <script src="engine.js"></script>
 <script src="scene.js"></script>

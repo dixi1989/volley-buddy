@@ -1,8 +1,11 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:#140a33;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+@font-face{font-family:'Jersey 10';font-weight:100 900;font-display:swap;size-adjust:122%;src:url(vendor/fonts/jersey-10-latin-400-normal.woff2) format('woff2')}
+html,body{margin:0;height:100%;background:#140a33;color:#fff;font-family:"Jersey 10",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+input{-webkit-user-select:text;user-select:text}
 body{display:flex;align-items:center;justify-content:center}
 #stage{position:relative;line-height:0}
 canvas{display:block;background:#6f6bdc;border-radius:6px;image-rendering:auto}
+#game{image-rendering:pixelated}
 /* overlays are laid out like on an 800x450 stage and scaled with the canvas (--k set in resize()), so nothing is cut off on small screens */
 .overlay{position:absolute;left:0;top:0;width:800px;height:450px;transform:scale(var(--k,1));transform-origin:0 0;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(20,8,55,.78),rgba(70,15,90,.72));backdrop-filter:blur(3px);line-height:1.35;padding:8px}
 .overlay[hidden]{display:none}
@@ -10,10 +13,10 @@ canvas{display:block;background:#6f6bdc;border-radius:6px;image-rendering:auto}
 .small-panel{max-width:380px}
 h1{margin:0 auto;max-width:300px;line-height:0}
 h1 img{display:block;width:100%;height:auto;filter:drop-shadow(0 0 10px #69cbdc55)}
-h2{margin:0 0 4px;font-size:clamp(22px,4vw,30px);color:#69cbdc;text-transform:uppercase;letter-spacing:2px;text-shadow:3px 3px 0 #ee1a8c}
+h2{margin:0 0 4px;font-size:clamp(22px,4vw,30px);color:#69cbdc;letter-spacing:2px;text-shadow:3px 3px 0 #ee1a8c}
 .sub{margin:4px 0 10px;color:#c9b8ff;letter-spacing:.5px;font-size:clamp(11px,1.8vw,14px)}
 .modes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0}
-button{font:inherit;font-weight:700;color:#1a0a45;background:#69cbdc;border:0;border-radius:4px;padding:10px 14px;cursor:pointer;box-shadow:4px 4px 0 #ee1a8c;transition:transform .05s;text-transform:uppercase;letter-spacing:1px}
+button{font:inherit;font-weight:700;color:#1a0a45;background:#69cbdc;border:0;border-radius:4px;padding:10px 14px;cursor:pointer;box-shadow:4px 4px 0 #ee1a8c;transition:transform .05s;letter-spacing:1px}
 button:hover{background:#8fe0ee}
 button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #ee1a8c}
 button.ghost{background:#3b2c9e;color:#e6dcff;box-shadow:4px 4px 0 #1d1260}
@@ -35,9 +38,12 @@ ol li small{color:#b6a5ee}
 .fields{display:grid;gap:10px;margin:10px 0}
 .fields label{display:grid;gap:4px;text-align:left;color:#d9ccff}
 .fields label[hidden]{display:none}
-.fields .prow{display:grid;gap:6px;background:#140a3399;border-left:3px solid #69cbdc;border-radius:4px;padding:8px 10px}
+.fields .prow{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;background:#140a3399;border-left:3px solid #69cbdc;border-radius:4px;padding:8px 10px}
 .fields .prow[hidden]{display:none}
-.look{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pcol{display:grid;gap:6px;min-width:0;text-align:left}
+canvas.prev{width:88px;height:88px;image-rendering:pixelated;background:linear-gradient(#6f6bdc,#f066b8 70%,#ffc3a8);border:2px solid #69cbdc;border-radius:4px}
+.look{display:grid;gap:6px}
+.lrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .look .sw{width:26px;height:26px;border-radius:50%;padding:0;border:2px solid #ffffff55;cursor:pointer;box-shadow:inset 0 -4px 6px #0003,inset 0 3px 4px #fff6}
 .look .sw.sel{border-color:#fff;transform:scale(1.18);box-shadow:0 0 0 2px #ee1a8c,0 0 8px #fff9,inset 0 3px 4px #fff6}
 .look .sw.taken{opacity:.25;cursor:not-allowed}
@@ -50,7 +56,7 @@ ol li small{color:#b6a5ee}
 .pulist{display:grid;gap:8px;margin:8px 0;text-align:left}
 .pucard{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center;background:#140a3399;border-left:3px solid #ee1a8c;border-radius:4px;padding:8px 10px}
 .pucard canvas{width:56px;height:56px;background:#2b1068;border-radius:50%;border:2px solid #69cbdc}
-.pucard b{color:#69cbdc;text-transform:uppercase;letter-spacing:1px;font-size:15px}
+.pucard b{color:#69cbdc;letter-spacing:1px;font-size:15px}
 .pucard span{display:block;color:#e3d9ff;font-size:13px;line-height:1.3}
 .pucard i{color:#ff6fc0;font-style:normal;font-weight:700}
 .howto{text-align:left;margin:8px 0;padding:0;list-style:none;display:grid;gap:5px;font-size:clamp(12px,1.8vw,13px);color:#e3d9ff}
@@ -61,7 +67,26 @@ ol li small{color:#b6a5ee}
 .bigcode{font-size:clamp(36px,9vw,56px);font-weight:900;letter-spacing:.35em;padding-left:.35em;color:#69cbdc;text-shadow:3px 3px 0 #ee1a8c;margin:6px 0}
 #menu .row button{padding:8px 12px;font-size:14px}
 .bigcode{font-size:48px!important;margin:2px 0!important}
-input.codein{width:7em;text-transform:uppercase;letter-spacing:.3em;font-weight:800}
+input.codein{width:7em;letter-spacing:.3em;font-weight:800}
 #onStatus{min-height:1.4em}
 button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .fields[hidden]{display:none}
+
+/* touch controls (laid out for 800x450 like the overlays) */
+#touch{position:absolute;left:0;top:0;width:800px;height:450px;transform:scale(var(--k,1));transform-origin:0 0;pointer-events:none;line-height:1;touch-action:none}
+#touch[hidden]{display:none}
+.tb{pointer-events:auto;touch-action:none;-webkit-touch-callout:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:92px;height:92px;padding:0;border-radius:14px;color:#fff;background:rgba(20,8,55,.5);border:3px solid rgba(105,203,220,.75);box-shadow:4px 4px 0 rgba(238,26,140,.6);text-transform:none;letter-spacing:0}
+.tb span{font-size:38px;line-height:1}
+.tb small{font-size:11px;font-weight:700;color:#bfeaf2;letter-spacing:1px}
+.tb.big{width:112px;height:112px}
+.tb.on{background:rgba(238,26,140,.7);transform:translate(2px,2px)}
+.tgroup{position:absolute;bottom:14px;display:flex;gap:14px;align-items:flex-end}
+.tgroup.tl{left:14px}.tgroup.tr{right:14px}
+.tb.tp{position:absolute;left:50%;bottom:14px;width:56px;height:56px;margin-left:-28px}
+.tb.tp span{font-size:24px}
+#rotate{display:none;position:fixed;top:8px;left:0;right:0;text-align:center;font-size:14px;color:#ffe0f4;z-index:5;pointer-events:none}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:block}}
+#setup .panel,#online .panel{max-width:600px}
+canvas.prev{width:80px;height:80px}
+.fields{gap:8px;margin:6px 0}
+.fields .prow{padding:6px 10px}
