@@ -767,12 +767,8 @@
   $('btnMusic').onclick = toggleMusic;
   $('btnMusic').textContent = musicLabel();
   if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version;
-  /* Dreifachklick auf die Version öffnet das deutsche Änderungsprotokoll (letzte 3 Versionen, siehe version.js) */
-  let verClicks = [];
+  /* Ein Klick auf die Version öffnet das deutsche Änderungsprotokoll (letzte 3 Versionen, siehe version.js) */
   $('buildInfo').addEventListener('click', () => {
-    const now = performance.now(); verClicks = verClicks.filter(t => now - t < 700); verClicks.push(now);
-    if (verClicks.length < 3) return;
-    verClicks = [];
     const log = (window.BUILD && BUILD.log) || [], body = $('changelogBody'); body.textContent = '';
     log.slice(0, 3).forEach(e => {
       const h = document.createElement('h3'); h.textContent = e.v + (e.v === BUILD.version ? ' (aktuell)' : ''); body.appendChild(h);
