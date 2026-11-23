@@ -171,7 +171,7 @@
     navFocus(a);
   }
   function uiBack() {
-    if (phase === 'setup') setPhase('mode');
+    if (phase === 'setup') setPhase(setupMode === 'throne' ? 'menu' : 'mode');
     else if (phase === 'mode' || phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto') setPhase('menu');
     else if (phase === 'online') { lobbyBusy(false); leaveOnline(); setPhase('menu'); }
     else if (phase === 'play') openPause();
@@ -481,6 +481,7 @@
       if (e.code === 'Digit1') openModes('classic');
       if (e.code === 'Digit2') openModes('fight');
       if (e.code === 'Digit3') $('btnOnline').click();
+      if (e.code === 'Digit4') $('btnThrone').click();
     } else if (phase === 'mode') {
       if (e.code === 'Digit1') openSetup('duel');
       if (e.code === 'Digit2') openSetup('team');
@@ -520,13 +521,14 @@
   function openSetup(mode) {
     setupMode = mode;
     $('name1').value = names.p1; $('name2').value = names.p2;
-    $('row2').hidden = mode === 'solo';
-    $('setupFields').classList.toggle('single', mode === 'solo'); $('setupPanel').classList.toggle('solo', mode === 'solo');
-    $('setupTitle').textContent = { duel: 'Choose your heroes', team: 'Choose your team', solo: 'Choose your hero' }[mode];
-    $('lbl1').textContent = mode === 'solo' ? 'You' : 'Player 1';
-    $('hint1').textContent = mode === 'solo' ? 'WASD or arrow keys' : 'A D · W · Ctrl';
+    const solo = mode === 'solo' || mode === 'throne';
+    $('row2').hidden = solo;
+    $('setupFields').classList.toggle('single', solo); $('setupPanel').classList.toggle('solo', solo);
+    $('setupTitle').textContent = { duel: 'Choose your heroes', team: 'Choose your team', solo: 'Choose your hero', throne: 'Climb to the Volley Throne' }[mode];
+    $('lbl1').textContent = solo ? 'You' : 'Player 1';
+    $('hint1').textContent = solo ? 'WASD or arrow keys' : 'A D · W · Ctrl';
     $('hint2').textContent = '← → · ↑ · Right Ctrl';
-    if (mode !== 'solo' && looks.p1.color === looks.p2.color) looks.p2.color = (PALETTE.find(p => p[1] !== looks.p1.color) || PALETTE[1])[1];
+    if (!solo && looks.p1.color === looks.p2.color) looks.p2.color = (PALETTE.find(p => p[1] !== looks.p1.color) || PALETTE[1])[1];
     renderLooks();
     setPhase('setup');
     setTimeout(() => { $('name1').focus(); $('name1').select(); }, 30);
@@ -536,11 +538,12 @@
     const n1 = clean($('name1').value), n2 = clean($('name2').value);
     names.p1 = n1; names.p2 = n2; store.set('vb_names', names);
     settings.level = $('level').value; settings.target = +$('target').value; saveSettings();
-    startGame(setupMode, n1 || (setupMode === 'solo' ? 'You' : 'Player 1'), n2 || 'Player 2');
+    startGame(setupMode, n1 || (setupMode === 'solo' || setupMode === 'throne' ? 'You' : 'Player 1'), n2 || 'Player 2');
   }
 
   /* --------------------------------------------------------- start a match */
   function startGame(mode, p1, p2) {
+    if (mode === 'throne') { startThrone(p1); return; }
     lastSetup = { mode, p1, p2 };
     const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, style: looks[slot].style, label });
     const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
@@ -558,15 +561,58 @@
     setPhase('play');
   }
 
+  /* ---- Volley Throne: six random heroes, each CPU stronger than the last (levels t1 … t6), Volley Fight rules ---- */
+  let throne = null;
+  const THRONE_ROUNDS = 6;
+  function startThrone(name) {
+    const pool = Object.keys(FIGURES).filter(id => id !== looks.p1.style);
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    throne = { name, opp: pool.slice(0, THRONE_ROUNDS), round: 0, total: 0, state: 'fight' };
+    startThroneRound();
+  }
+  function startThroneRound() {
+    const r = throne.round, style = throne.opp[r];
+    const free = PALETTE.map(p => p[1]).filter(c => c !== looks.p1.color);
+    const teams = [[{ controller: 'human', color: looks.p1.color, style: looks.p1.style, label: throne.name }],
+                   [{ controller: 'ai', color: free[(r * 3 + 1) % free.length], style, label: FIGURES[style].name }]];
+    game = new Sim({ teams, level: 't' + (r + 1), target: r === THRONE_ROUNDS - 1 ? 7 : 5, fight: true });
+    game.mode = 'throne'; game.teamNames = [throne.name, FIGURES[style].name];
+    game.blobs.filter(b => b.controller === 'human').forEach(b => { b.keymap = 'BOTH'; });
+    game.say((r === THRONE_ROUNDS - 1 ? 'Final: ' : 'Round ' + (r + 1) + '/' + THRONE_ROUNDS + ': ') + 'vs ' + FIGURES[style].name, 150);
+    lastSetup = { mode: 'throne', p1: throne.name, p2: '' };
+    setPhase('play');
+  }
+
   /* ------------------------------------------------------------ match end */
   function showOver() {
     const w = game.winner, s = game.score;
     const mult = LEVELS[game.level].mult;
     let title, info = `${s[0]} : ${s[1]} · longest rally ${game.longestRally}`, rank = '';
+    $('btnAgain').disabled = false; $('btnAgain').textContent = 'Play again';
     if (game.mode === 'online') {
       title = w === game.localTeam ? '🏆 You win!' : `${game.teamNames[w]} wins!`;
       info += ' · online';
       $('btnAgain').disabled = false; $('btnAgain').textContent = 'Play again';
+    } else if (game.mode === 'throne') {
+      const r = throne.round, foe = FIGURES[throne.opp[r]].name;
+      if (w === 0) {
+        throne.total += Math.round((s[0] - s[1]) * 100 * (1 + r * 0.4) + game.longestRally * 10);
+        if (r === THRONE_ROUNDS - 1) {
+          title = '👑 You claim the Volley Throne!'; info = `All ${THRONE_ROUNDS} heroes beaten · final ${s[0]} : ${s[1]}`; throne.state = 'won';
+          const entry = { name: throne.name, score: throne.total, pts: [THRONE_ROUNDS, THRONE_ROUNDS], mode: 'throne', level: 'hard', rally: game.longestRally, target: game.target, date: Date.now() };
+          scores.push(entry); scores.sort((a, b) => b.score - a.score);
+          const idx = scores.indexOf(entry); scores = scores.slice(0, 10); store.set('vb_scores', scores);
+          rank = idx >= 0 && idx < 10 ? `New high score! Rank #${idx + 1} · ${throne.total} points` : `${throne.total} points`;
+          $('btnAgain').textContent = 'New climb';
+        } else {
+          title = `Round ${r + 1}/${THRONE_ROUNDS} cleared!`; info = `You beat ${foe} ${s[0]} : ${s[1]}`;
+          rank = `Next: ${FIGURES[throne.opp[r + 1]].name}` + (r + 1 === THRONE_ROUNDS - 1 ? ' – the final!' : ` (${r + 2}/${THRONE_ROUNDS})`);
+          throne.state = 'next'; throne.round++; $('btnAgain').textContent = 'Next fight';
+        }
+      } else {
+        title = `${foe} knocks you off the ladder`; info = `Round ${r + 1}/${THRONE_ROUNDS} · ${s[0]} : ${s[1]}`; throne.state = 'lost';
+        rank = r ? `You made it past ${r} hero${r > 1 ? 'es' : ''}.` : ''; $('btnAgain').textContent = 'New climb';
+      }
     } else if (game.mode === 'duel') {
       duel[w]++; store.set('vb_duel', duel);
       title = `🏆 ${game.teamNames[w]} wins!`;
@@ -593,7 +639,8 @@
       const nm = document.createElement('b'); nm.textContent = s.name;
       const sm = document.createElement('small');
       const lv = LEVEL_MAP[s.level] || s.level;
-      sm.textContent = ` ${s.pts[0]}:${s.pts[1]} · ${s.mode === 'team' ? '2v2' : '1v1'} CPU ${LEVEL_LABEL[lv] || lv} · rally ${s.rally} · ${new Date(s.date).toLocaleDateString('en-GB')}`;
+      if (s.mode === 'throne') sm.textContent = ` 👑 Volley Throne · rally ${s.rally} · ${new Date(s.date).toLocaleDateString('en-GB')}`;
+      else sm.textContent = ` ${s.pts[0]}:${s.pts[1]} · ${s.mode === 'team' ? '2v2' : '1v1'} CPU ${LEVEL_LABEL[lv] || lv} · rally ${s.rally} · ${new Date(s.date).toLocaleDateString('en-GB')}`;
       li.append(sc, nm, sm); ol.appendChild(li);
     });
     $('duelStats').textContent = `Duel record (local 1 vs 1): Player 1 ${duel[0]} – ${duel[1]} Player 2`;
@@ -602,9 +649,10 @@
   /* ------------------------------------------------------------- UI buttons */
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => openSetup(b.dataset.mode)));
   $('btnStart').onclick = beginMatch;
-  $('btnSetupBack').onclick = () => setPhase('mode');
+  $('btnSetupBack').onclick = () => setPhase(setupMode === 'throne' ? 'menu' : 'mode');
   $('btnModeBack').onclick = () => setPhase('menu');
   document.querySelectorAll('[data-rules]').forEach(b => b.addEventListener('click', () => openModes(b.dataset.rules)));
+  $('btnThrone').onclick = () => openSetup('throne');
   $('btnScores').onclick = () => { renderScores(); setPhase('scores'); };
   $('btnScoresBack').onclick = () => setPhase('menu');
   const PU_INFO = [
@@ -645,6 +693,7 @@
   $('btnQuit').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
   $('btnAgain').onclick = () => {
     if (online) { online.myRm = true; $('btnAgain').disabled = true; $('btnAgain').textContent = 'Waiting for opponent…'; return; }
+    if (lastSetup.mode === 'throne' && throne) { if (throne.state === 'next') { throne.state = 'fight'; startThroneRound(); } else startThrone(throne.name); return; }
     startGame(lastSetup.mode, lastSetup.p1, lastSetup.p2);
   };
   $('btnMenu').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
@@ -695,6 +744,7 @@
     ctx.fillStyle = cols[1]; ctx.fillText(g.score[1], 452, 44);
     ctx.fillStyle = '#fff'; ctx.font = '700 18px ' + FONT; ctx.fillText(':', 400, 41);
     ctx.font = '600 10px ' + FONT; ctx.fillStyle = '#9fe0ec'; ctx.fillText('to ' + g.target, 400, 55);
+    if (g.mode === 'throne' && throne) { ctx.font = '700 13px ' + FONT; ctx.fillStyle = '#ffd23f'; ctx.fillText(g.target === 7 && throne.round === THRONE_ROUNDS - 1 ? '👑 FINAL' : '👑 Round ' + (throne.round + 1) + '/' + THRONE_ROUNDS, 400, 76); }
     // serve marker
     const sx = g.serving === 0 ? 318 : 482;
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, 22, 5, 0, 7); ctx.fill();

@@ -98,6 +98,13 @@
     hard:   { delay: 2,  err: 8,  move: 1.00, jump: 1.00, grab: 0.85, use: 0.040, wpn: 0.35, mult: 2.0 }
   };
 
+  /* Volley Throne ladder: six steps (t1 … t6) interpolated from the easy CPU to the hard CPU */
+  ['t1', 't2', 't3', 't4', 't5', 't6'].forEach((k, i) => {
+    const f = i / 5, lv = {};
+    Object.keys(LEVELS.easy).forEach(n => { lv[n] = LEVELS.easy[n] + (LEVELS.hard[n] - LEVELS.easy[n]) * f; });
+    lv.delay = Math.round(lv.delay); LEVELS[k] = lv;
+  });
+
   // deterministic random numbers (for tests)
   function mulberry32(a) {
     return function () {

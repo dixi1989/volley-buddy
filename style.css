@@ -222,3 +222,10 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .look .tile canvas{width:28px;height:28px}
 #online .hdesc{min-height:1.3em;padding:2px 8px;margin:2px 0}
 #online .look{gap:2px}
+
+/* v40: Volley Throne button under the three main modes */
+#menu .modes .throne{grid-column:1 / -1;flex-direction:row;align-items:center;justify-content:center;gap:10px;padding:6px 10px;background:linear-gradient(#ffd23f,#ff9a3c);color:#3b1a00}
+#menu .modes .throne .mi{font-size:22px}
+#menu .modes .throne small{color:#5a2a00;font-size:11px}
+#menu h1{max-width:440px}
+#menu .modes{margin:4px 0}
