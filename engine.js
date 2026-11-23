@@ -20,7 +20,10 @@
     PU_MAX_INV: 3,
     TOWEL_FRAMES: 1500, TOWEL_H: 5,   // 25 s
     ALMAN_FRAMES: 600, ALMAN_MULT: 0.8, // 10 s, speed and jump height at 80 %
-    AURA_FRAMES: 600, AURA_MULT: 1.3    // 10 s, bear hit box 30 % larger
+    AURA_FRAMES: 600, AURA_MULT: 1.3,   // 10 s, hit box 30 % larger
+    // Volley Fight: weapons
+    WEAPON_CD: 96, WEAPON_SWING: 14,    // cooldown 1.6 s, swing lasts 14 frames
+    WEAPON_REACH: 58, WEAPON_V: 16.5    // reach beyond the body, ball speed after a weapon hit (classic hits: max 13)
   };
 
   const POWERUPS = {
@@ -33,16 +36,17 @@
   /* Figures a player can pick (looks only, same hit box). `weapon` is reserved for a later feature:
    * a per-figure ability that can act on the ball. */
   const FIGURES = {
-    gummy: { name: 'Gummy Bear', weapon: null },
-    pixel: { name: 'Pixel Hero', weapon: null },
-    ninja: { name: 'Ninja', weapon: null },
-    santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: null }
+    pixel: { name: 'Pixel Hero', weapon: 'sword' },
+    ninja: { name: 'Ninja', weapon: 'katana' },
+    adventurer: { name: 'Adventurer', weapon: 'lasso' },
+    santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: 'rod' }
   };
+  const DEFAULT_FIGURE = 'pixel';
 
   const LEVELS = {
-    easy:   { delay: 14, err: 46, move: 0.72, jump: 0.55, grab: 0.25, use: 0.010, mult: 1.0 },
-    normal: { delay: 7,  err: 24, move: 0.90, jump: 0.85, grab: 0.50, use: 0.020, mult: 1.5 },
-    hard:   { delay: 2,  err: 8,  move: 1.00, jump: 1.00, grab: 0.85, use: 0.040, mult: 2.0 }
+    easy:   { delay: 14, err: 46, move: 0.72, jump: 0.55, grab: 0.25, use: 0.010, wpn: 0.06, mult: 1.0 },
+    normal: { delay: 7,  err: 24, move: 0.90, jump: 0.85, grab: 0.50, use: 0.020, wpn: 0.14, mult: 1.5 },
+    hard:   { delay: 2,  err: 8,  move: 1.00, jump: 1.00, grab: 0.85, use: 0.040, wpn: 0.35, mult: 2.0 }
   };
 
   // deterministic random numbers (for tests)
@@ -99,18 +103,21 @@
       this.controller = controller; // 'human' | 'ai'
       this.color = color; this.label = label;
       this.gender = gender === 'f' ? 'f' : 'm';   // looks only: swim trunks or bikini
-      this.style = FIGURES[style] ? style : 'gummy';   // looks only: see FIGURES
+      this.style = FIGURES[style] ? style : DEFAULT_FIGURE;   // looks only: see FIGURES
       this.aura = false;
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = 0; this.vy = 0;
       this.input = { left: false, right: false, jump: false, special: false };
       this.prevSpecial = false;
       this.touchCd = 0;
+      this.fight = false;            // Volley Fight: has a weapon
+      this.swing = 0; this.cd = 0; this.swung = false;   // weapon swing frames left / cooldown frames left
+      this.aim = 0;                  // weapon angle (radians), auto-aimed at the ball
       this.ai = null;
     }
     reset() {
       this.x = this.homeX; this.y = C.GROUND - C.BLOB_R;
-      this.vx = this.vy = 0; this.touchCd = 0;
+      this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0;
     }
     get onGround() { return this.y >= C.GROUND - C.BLOB_R - 0.001; }
   }
@@ -185,6 +192,12 @@
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
       }
 
+      // Volley Fight: swing the weapon when the ball is in reach
+      if (sim.fight && b.cd === 0 && b.swing === 0 && (sim.state === 'play' || sim.state === 'serve') &&
+          !(sim.lastTouchTeam === b.team && sim.touches[b.team] >= C.MAX_TOUCHES) &&
+          Math.hypot(ball.x - b.x, ball.y - b.y) < C.BLOB_R + C.BALL_R + C.WEAPON_REACH - 8 &&
+          (sim.state === 'play' || sim.timer <= 45) && rng() < p.wpn) inp.special = true;
+
       // use a stored power-up
       const held = sim.inv[b.team][0];
       if (sim.state === 'play' && held && rng() < p.use &&
@@ -200,6 +213,7 @@
       this.rng = mulberry32(opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0);
       this.level = opts.level || 'normal';
       this.target = opts.target || 11;
+      this.fight = !!opts.fight;       // Volley Fight mode: special key swings a weapon, no power-ups
       this.blobs = [];
       const homes = n => (n === 1 ? [0.5] : [0.28, 0.72]);
       opts.teams.forEach((team, t) => {
@@ -207,6 +221,7 @@
         team.forEach((spec, i) => {
           const hx = t === 0 ? C.NET_X * hs[i] : C.NET_X + C.NET_X * hs[i];
           const b = new Blob(this.blobs.length, t, hx, spec.controller, spec.color, spec.label, spec.gender, spec.style);
+          b.fight = this.fight;
           if (spec.controller === 'ai') b.ai = new AI(b, this, this.level);
           this.blobs.push(b);
         });
@@ -289,6 +304,7 @@
       this.emit('spawn', {});
     }
     updatePowerups() {
+      if (this.fight) return;
       if (this.state === 'over') return;      // timers keep running in every phase of the match (serve, between points)
       for (let t = 0; t < 2; t++) {
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
@@ -344,8 +360,10 @@
     updateBlob(b) {
       const inp = b.input;
       if (b.touchCd > 0) b.touchCd--;
-      if (inp.special && !b.prevSpecial) this.activate(b.team);
+      const pressed = inp.special && !b.prevSpecial;
       b.prevSpecial = inp.special;
+      if (this.fight) { this.weaponStep(b, pressed); }
+      else if (pressed) this.activate(b.team);
 
       b.alman = this.alman[b.team] > 0;
       b.aura = this.aura[b.team] > 0;
@@ -384,14 +402,46 @@
       ball.vx = vx; ball.vy = vy;
       ball.spin = clamp(ball.vx * 0.04, -0.5, 0.5);
 
-      if (b.touchCd === 0) {
-        b.touchCd = 8;
-        this.emit('hit', { blob: b.id, power: Math.min(1, sp / 13) });
-        if (this.lastTouchTeam !== b.team) { this.touches[b.team] = 0; this.touches[1 - b.team] = 0; }
-        this.lastTouchTeam = b.team;
-        this.touches[b.team]++;
-        this.rallyHits++;
-        if (this.touches[b.team] > C.MAX_TOUCHES) this.endRally(1 - b.team, 'fault');
+      if (b.touchCd === 0) this.registerTouch(b, 'hit', Math.min(1, sp / 13));
+    }
+
+    /* Counts a touch of the ball (classic hit or weapon hit): max. 3 per side. */
+    registerTouch(b, type, power) {
+      b.touchCd = 8;
+      this.emit(type, { blob: b.id, power });
+      if (this.lastTouchTeam !== b.team) { this.touches[b.team] = 0; this.touches[1 - b.team] = 0; }
+      this.lastTouchTeam = b.team;
+      this.touches[b.team]++;
+      this.rallyHits++;
+      if (this.touches[b.team] > C.MAX_TOUCHES) this.endRally(1 - b.team, 'fault');
+    }
+
+    /* Volley Fight: the special key swings the figure's weapon. The weapon auto-aims at the ball; if the ball is in reach during the
+     * swing it is shot toward the opponents' side, faster than a normal hit. Cooldown prevents spamming. */
+    weaponStep(b, pressed) {
+      const ball = this.ball;
+      if (b.cd > 0) b.cd--;
+      if (b.swing > 0) b.swing--;
+      const live = this.state === 'serve' || this.state === 'play';
+      const dir = b.team === 0 ? 1 : -1;
+      if (pressed && live && b.cd === 0 && b.swing === 0) {
+        b.swing = C.WEAPON_SWING; b.cd = C.WEAPON_CD; b.swung = false;
+        this.emit('swing', { blob: b.id });
+      }
+      // auto-aim: while idle the weapon rests forward-up, while swinging it points at the ball
+      const dx = ball.x - b.x, dy = ball.y - b.y, dist = Math.hypot(dx, dy);
+      if (b.swing > 0 && dist < 260) b.aim = Math.atan2(dy, dx);
+      else if (b.swing > 0) b.aim = dir === 1 ? -0.5 : Math.PI + 0.5;
+      if (b.swing > 0 && !b.swung && live && dist <= C.BLOB_R + C.BALL_R + C.WEAPON_REACH) {
+        b.swung = true;
+        const ux = dx / Math.max(dist, 0.001), uy = dy / Math.max(dist, 0.001);
+        let vx = dir * 0.85 + ux * 0.25, vy = uy * 0.6 - 0.25;
+        const n = Math.hypot(vx, vy);
+        vx = vx / n * C.WEAPON_V; vy = vy / n * C.WEAPON_V;
+        if (vy < -C.BALL_MAX_UP) vy = -C.BALL_MAX_UP;
+        ball.vx = vx; ball.vy = vy; ball.spin = clamp(vx * 0.05, -0.6, 0.6);
+        if (this.state === 'serve') { this.state = 'play'; this.say('', 0); }
+        this.registerTouch(b, 'weapon', 1);
       }
     }
 
@@ -466,7 +516,7 @@
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, FIGURES, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

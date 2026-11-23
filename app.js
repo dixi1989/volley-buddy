@@ -20,7 +20,7 @@
   };
   const LEVEL_MAP = { leicht: 'easy', mittel: 'normal', schwer: 'hard' };   // saved by earlier versions
   const LEVEL_LABEL = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
-  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true }, store.get('vb_settings', {}));
+  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true, fight: false }, store.get('vb_settings', {}));
   settings.level = LEVEL_MAP[settings.level] || settings.level;
   if (!LEVELS[settings.level]) settings.level = 'normal';
   let names = Object.assign({ p1: '', p2: '' }, store.get('vb_names', {}));
@@ -28,7 +28,7 @@
   let duel = store.get('vb_duel', [0, 0]);
   const saveSettings = () => store.set('vb_settings', settings);
 
-  $('level').value = settings.level; $('target').value = String(settings.target); $('music').value = settings.music ? 'on' : 'off';
+  $('level').value = settings.level; $('target').value = String(settings.target); $('music').value = settings.music ? 'on' : 'off'; $('rules').value = settings.fight ? 'fight' : 'classic';
 
   /* ------------------------------------------------------- touch controls */
   const touchMode = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || 'ontouchstart' in window;
@@ -44,11 +44,11 @@
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
-  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'gummy' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'gummy' } }, store.get('vb_looks', {}));
-  ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = 'gummy'; });
+  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'ninja' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'adventurer' } }, store.get('vb_looks', {}));
+  ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = k === 'p1' ? 'ninja' : 'adventurer'; });
   /* name / figure / colour picker used by the setup screen and the online lobby */
   const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
-  const styleOf = v => (FIGURES[v] ? v : 'gummy');
+  const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
   function drawTile(c, spec) {
     const x = c.getContext('2d');
     x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height);
@@ -83,7 +83,7 @@
     });
     const gap = document.createElement('span'); gap.className = 'gap'; r2.appendChild(gap);
     PALETTE.forEach(([name, col]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (me.style === 'gummy' ? '' : ' swimwear'); b.dataset.k = box.id + ':c:' + col;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (' swimwear'); b.dataset.k = box.id + ':c:' + col;
       if (me.color === col) b.classList.add('sel');
       if (oth && oth.color === col) b.classList.add('taken');
       b.onclick = () => { if (oth && oth.color === col) return; me.color = col; store.set('vb_looks', looks); redo(); };
@@ -337,6 +337,8 @@
   function playEvent(e) {
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
+      case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
+      case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
       case 'net': tone(320, 0.06, 'triangle', 0.1, -90); break;
       case 'wall': tone(230, 0.05, 'triangle', 0.07, -60); break;
@@ -450,7 +452,7 @@
     const clean = v => (v || '').replace(/\s+/g, ' ').trim().slice(0, 12);
     const n1 = clean($('name1').value), n2 = clean($('name2').value);
     names.p1 = n1; names.p2 = n2; store.set('vb_names', names);
-    settings.level = $('level').value; settings.target = +$('target').value; saveSettings();
+    settings.level = $('level').value; settings.target = +$('target').value; settings.fight = $('rules').value === 'fight'; saveSettings();
     startGame(setupMode, n1 || (setupMode === 'solo' ? 'You' : 'Player 1'), n2 || 'Player 2');
   }
 
@@ -459,14 +461,14 @@
     lastSetup = { mode, p1, p2 };
     const H = (slot, label) => ({ controller: 'human', color: looks[slot].color, gender: looks[slot].gender, style: looks[slot].style, label });
     const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
-    const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU bears take colors nobody chose
+    const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU heroes take colors nobody chose
     let ci = 0;
     const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', style: Object.keys(FIGURES)[Math.floor(Math.random() * Object.keys(FIGURES).length)], label: 'CPU' });
     let teams, tn;
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
     else { teams = [[H('p1', p1)], [A()]]; tn = [p1, 'CPU']; }
-    game = new Sim({ teams, level: settings.level, target: settings.target });
+    game = new Sim({ teams, level: settings.level, target: settings.target, fight: settings.fight });
     game.mode = mode; game.teamNames = tn;
     const humans = game.blobs.filter(b => b.controller === 'human');
     humans.forEach((b, i) => { b.keymap = mode === 'solo' ? 'BOTH' : (i === 0 ? 'P1' : 'P2'); });
@@ -523,7 +525,7 @@
   const PU_INFO = [
     ['towel', 'Fluffy Towel', 'Lays a towel on <i>your</i> half for 25 s. The ball bounces high off it instead of ending the rally.'],
     ['alman', 'Alman Mode', 'Your <i>opponents</i> get a bucket hat with flags, white socks and sandals for 10 s: only 80 % speed and 80 % jump height. Comes with a techno anthem.'],
-    ['aura', 'Aura+10', 'Cool sunglasses: for 10 s your bears\' ball hit box is <i>30 % bigger</i>, so the ball is easier to hit. Comes with a techno beat.']
+    ['aura', 'Aura+10', 'Cool sunglasses: for 10 s your heroes\' ball hit box is <i>30 % bigger</i>, so the ball is easier to hit. Comes with a techno beat.']
   ];
   function renderPowerups() {
     const list = $('puList'); list.innerHTML = '';
@@ -557,7 +559,7 @@
     startGame(lastSetup.mode, lastSetup.p1, lastSetup.p2);
   };
   $('btnMenu').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
-  $('level').onchange = $('target').onchange = () => { settings.level = $('level').value; settings.target = +$('target').value; saveSettings(); };
+  $('level').onchange = $('target').onchange = $('rules').onchange = () => { settings.level = $('level').value; settings.target = +$('target').value; settings.fight = $('rules').value === 'fight'; saveSettings(); };
 
   let installEvt = null;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
@@ -767,8 +769,8 @@
     const hn = mine.n || 'Host';
     online.gid++; online.seq = 0; online.myRm = false;
     online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
-    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], styles: [mine.s, gu.style], target: settings.target };
-    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target });
+    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0 };
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight });
     game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
     setPhase('play');
   }
@@ -779,7 +781,7 @@
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
     const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
-    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target });
+    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
     setPhase('play');
   }

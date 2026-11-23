@@ -14,7 +14,7 @@
     const s = {
       t: 's', g: gid, q: seq,
       b: [r2(b.x), r2(b.y), r2(b.vx), r2(b.vy), r2(b.spin)],
-      bl: sim.blobs.map(o => [r2(o.x), r2(o.y), r2(o.vx), r2(o.vy), o.alman ? 1 : 0, o.aura ? 1 : 0]),
+      bl: sim.blobs.map(o => [r2(o.x), r2(o.y), r2(o.vx), r2(o.vy), o.alman ? 1 : 0, o.aura ? 1 : 0, o.swing, o.cd, r2(o.aim)]),
       sc: sim.score, sv: sim.serving, tc: sim.touches, lt: sim.lastTouchTeam, rh: sim.rallyHits, lr: sim.longestRally,
       st: sim.state, tm: sim.timer, w: sim.winner, ms: sim.message, mt: sim.messageTimer,
       it: sim.items.map(p => [p.id, p.type, r2(p.x), r2(p.y), p.age]),
@@ -31,7 +31,7 @@
     b.x = s.b[0]; b.y = s.b[1]; b.vx = s.b[2]; b.vy = s.b[3]; b.spin = s.b[4];
     s.bl.forEach((a, i) => {
       const o = sim.blobs[i]; if (!o) return;
-      o.x = a[0]; o.y = a[1]; o.vx = a[2]; o.vy = a[3]; o.alman = !!a[4]; o.aura = !!a[5];
+      o.x = a[0]; o.y = a[1]; o.vx = a[2]; o.vy = a[3]; o.alman = !!a[4]; o.aura = !!a[5]; o.swing = a[6] | 0; o.cd = a[7] | 0; o.aim = a[8] || 0;
     });
     sim.score = s.sc; sim.serving = s.sv; sim.touches = s.tc; sim.lastTouchTeam = s.lt;
     sim.rallyHits = s.rh; sim.longestRally = s.lr;
