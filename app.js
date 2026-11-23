@@ -1098,6 +1098,7 @@
       if (btn(g, PAD.ok)) cur.ok = true; if (btn(g, PAD.back)) cur.back = true; if (btn(g, PAD.start)) cur.start = true; if (btn(g, PAD.select)) cur.select = true;
       if (left || right || jump || special || ay < -PAD.dead || ay > PAD.dead) usingPad = true;
     });
+    let startUsed = false;
     // menus: directions repeat while held, A / B / Start act once per press
     if (NAV_PHASES.has(phase)) {
       for (const d of ['up', 'down', 'left', 'right']) {
@@ -1107,9 +1108,11 @@
       }
       if (cur.ok && !padPrev.ok) uiAction('ok');
       if (cur.back && !padPrev.back) uiAction('back');
+      // Start jumps straight to Next / Fight! on the hero and stage screens, wherever the focus is
+      if (cur.start && !padPrev.start && (phase === 'setup' || phase === 'stage')) { startUsed = true; $(phase === 'setup' ? 'btnStart' : 'btnStageGo').click(); }
     } else padDir = {};
     // Start = pause menu (Resume / Menu), press again to resume; Select (Back / View) = pause menu with "Menu" ready, so Select + A leaves the match
-    if (cur.start && !padPrev.start) { if (phase === 'play') openPause(); else if (phase === 'pause') setPhase('play'); }
+    if (cur.start && !padPrev.start && !startUsed) { if (phase === 'play') openPause(); else if (phase === 'pause') setPhase('play'); }
     if (cur.select && !padPrev.select) { if (phase === 'play') { openPause(); $('btnQuit').focus(); } else if (phase === 'pause') setPhase('play'); }
     padPrev = cur;
     // right stick scrolls long pages (How to play ...)
