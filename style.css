@@ -214,3 +214,5 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .panel{max-width:660px}
 .howto{grid-template-columns:1fr 1fr;gap:5px 8px;font-size:12px}
 .howto li{padding:4px 8px;line-height:1.3}
+/* v37: einspaltige Felder füllen das (breitere) Panel */
+.fields.cols.single,.fields.single{max-width:none;margin:4px 0}
