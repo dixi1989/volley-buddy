@@ -528,7 +528,7 @@
     ctx.restore();
   }
 
-  function drawBackground(ctx, t, net) {
+  function drawBeach(ctx, t, net) {
     const W = C.W, H = C.H;
     // sky
     const sky = ctx.createLinearGradient(0, 0, 0, 330);
@@ -642,7 +642,7 @@
   }
 
   /* The net post from its foot (bx) to its top (tx); they differ while Faulty Level makes it lean. */
-  function drawNet(ctx, bx, tx) {
+  function drawNet(ctx, bx, tx, stripe) {
     const H = C.GROUND - C.NET_TOP, L = Math.hypot(tx - bx, H), ang = Math.atan2(tx - bx, H);
     ctx.fillStyle = 'rgba(60,20,90,.28)'; ctx.beginPath(); ctx.ellipse(bx, C.GROUND + 6, 19, 4.5, 0, 0, TAU); ctx.fill();
     ctx.save(); ctx.translate(bx, C.GROUND); ctx.rotate(ang);
@@ -650,13 +650,233 @@
     const pg = ctx.createLinearGradient(x0, 0, x0 + w, 0);
     pg.addColorStop(0, '#8fdde8'); pg.addColorStop(0.4, '#ffffff'); pg.addColorStop(1, '#4fa9c4');
     ctx.fillStyle = pg; ctx.fillRect(x0, -L, w, L);
-    ctx.fillStyle = '#ee1a8c';
+    ctx.fillStyle = stripe || '#ee1a8c';
     for (let y = 14; y < L - 6; y += 28) ctx.fillRect(x0, -L + y, w, 10);
     ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, -L, C.NET_HW, Math.PI, 0); ctx.fill();
     ctx.restore();
   }
 
 
+
+  /* ------------------------------------------------------ Stages */
+  /* All stages share the court (ground at C.GROUND, net in the middle); only the backdrop differs. The beach is drawBeach() above. */
+  const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };   // deterministic pseudo random 0..1
+
+  function drawStars(ctx, t, n, y1, seed) {
+    for (let i = 0; i < n; i++) {
+      const x = rnd(i, seed) * C.W, y = rnd(i, seed + 1) * y1, tw = 0.5 + 0.5 * sin(t * (1 + rnd(i, 3) * 2) + i);
+      ctx.fillStyle = `rgba(255,255,255,${0.25 + 0.6 * tw})`; const s = rnd(i, 5) > 0.85 ? 3 : 2; ctx.fillRect(Math.round(x / 2) * 2, Math.round(y / 2) * 2, s, s);
+    }
+  }
+
+  function drawMoon(ctx, t, net) {
+    const W = C.W, H = C.H;
+    const sky = ctx.createLinearGradient(0, 0, 0, 400); sky.addColorStop(0, '#05041a'); sky.addColorStop(0.6, '#13124a'); sky.addColorStop(1, '#2a1f6b');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    drawStars(ctx, t, 90, 300, 1);
+    // shooting star every ~9 s
+    const sp = (t % 9) / 0.9;
+    if (sp < 1) { const x = 600 - sp * 380, y = 40 + sp * 120; ctx.strokeStyle = `rgba(255,255,255,${1 - sp})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 34, y - 11); ctx.stroke(); }
+    // Earth with a glow, clouds and a day/night edge
+    const ex = 150, ey = 120, er = 56;
+    const gl = ctx.createRadialGradient(ex, ey, er * 0.9, ex, ey, er * 1.9); gl.addColorStop(0, 'rgba(110,170,255,.45)'); gl.addColorStop(1, 'rgba(110,170,255,0)');
+    ctx.fillStyle = gl; ctx.fillRect(ex - 120, ey - 120, 240, 240);
+    ctx.save(); ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.clip();
+    ctx.fillStyle = '#2a6fd8'; ctx.fillRect(ex - er, ey - er, er * 2, er * 2);
+    ctx.fillStyle = '#3fae5a';
+    [[-20, -22, 22, 14], [10, -8, 20, 24], [-34, 10, 16, 12], [18, 26, 18, 10]].forEach(([dx, dy, w, h]) => { ctx.beginPath(); ctx.ellipse(ex + dx, ey + dy, w, h, 0.4, 0, TAU); ctx.fill(); });
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    for (let i = 0; i < 4; i++) { const cx = ex - er + ((t * 3 + i * 40) % (er * 2.6)) - 8; ctx.beginPath(); ctx.ellipse(cx, ey - 30 + i * 18, 18, 5, 0, 0, TAU); ctx.fill(); }
+    const sh = ctx.createLinearGradient(ex - er, 0, ex + er, 0); sh.addColorStop(0, 'rgba(0,0,30,0)'); sh.addColorStop(0.55, 'rgba(0,0,30,0)'); sh.addColorStop(1, 'rgba(0,0,30,.65)');
+    ctx.fillStyle = sh; ctx.fillRect(ex - er, ey - er, er * 2, er * 2);
+    ctx.restore();
+    // far crater ridge
+    ctx.fillStyle = '#3b3a6e'; ctx.beginPath(); ctx.moveTo(0, 372);
+    [[60, 340], [130, 360], [210, 330], [300, 358], [380, 345], [470, 362], [560, 336], [660, 360], [740, 344], [800, 366]].forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.lineTo(W, 390); ctx.lineTo(0, 390); ctx.closePath(); ctx.fill();
+    // moon station: glass dome with windows, antenna with a blinking light, solar panels, a module
+    ctx.fillStyle = '#8f93b8'; ctx.fillRect(560, 340, 150, 40);
+    ctx.fillStyle = '#6b6f98'; ctx.fillRect(560, 366, 150, 14);
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = (Math.floor(t * 0.6 + i * 1.7) % 3 === 0) ? '#5a5f86' : '#ffe58a'; ctx.fillRect(572 + i * 22, 350, 12, 9); }
+    const dg = ctx.createLinearGradient(0, 296, 0, 340); dg.addColorStop(0, 'rgba(150,220,255,.85)'); dg.addColorStop(1, 'rgba(90,150,230,.55)');
+    ctx.fillStyle = dg; ctx.beginPath(); ctx.ellipse(610, 340, 46, 44, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(610, 340, 46, 44, 0, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(610, 296); ctx.lineTo(610, 340); ctx.moveTo(576, 316); ctx.lineTo(644, 316); ctx.stroke();
+    ctx.fillStyle = '#c9ccec'; ctx.fillRect(700, 300, 4, 44); ctx.fillStyle = Math.floor(t * 1.6) % 2 ? '#ff3b3b' : '#6a1a1a'; ctx.fillRect(697, 296, 10, 6);
+    ctx.fillStyle = '#2a3f9a'; ctx.fillRect(500, 352, 56, 22); ctx.fillStyle = '#4f6ad8'; for (let i = 0; i < 4; i++) ctx.fillRect(504 + i * 13, 355, 10, 16);
+    ctx.fillStyle = '#c9ccec'; ctx.fillRect(552, 362, 12, 4);
+    // lunar ground
+    const gr = ctx.createLinearGradient(0, 384, 0, H); gr.addColorStop(0, '#c9c9dc'); gr.addColorStop(0.5, '#9b9bb8'); gr.addColorStop(1, '#6a6a92');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 386);
+    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, 384 + sin(x * 0.02) * 3); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    [[110, 420, 34, 8], [300, 436, 26, 6], [470, 416, 40, 9], [650, 432, 30, 7], [760, 418, 22, 5], [200, 440, 18, 4]].forEach(([x, y, w, h]) => {
+      ctx.fillStyle = 'rgba(60,60,100,.45)'; ctx.beginPath(); ctx.ellipse(x, y, w, h, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(230,230,250,.5)'; ctx.beginPath(); ctx.ellipse(x - 2, y - 2, w - 3, h - 2, 0, Math.PI, 0); ctx.fill();
+    });
+    ctx.fillStyle = 'rgba(70,70,110,.35)'; for (let i = 0; i < 30; i++) ctx.fillRect(Math.round(rnd(i, 9) * W / 2) * 2, 408 + Math.round(rnd(i, 8) * 36 / 2) * 2, 2, 2);
+    // planted flag
+    ctx.fillStyle = '#e8e8f4'; ctx.fillRect(52, 342, 3, 50);
+    ctx.fillStyle = '#ee1a8c'; ctx.fillRect(55, 344, 30, 8 + Math.floor(sin(t * 0.8) * 1)); ctx.fillStyle = '#69cbdc'; ctx.fillRect(55, 352, 30, 8);
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
+    drawNet(ctx, ...net, '#69cbdc');
+  }
+
+  function drawWater(ctx, t, net) {
+    const W = C.W, H = C.H;
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#59e0ee'); bg.addColorStop(0.35, '#1c9ccc'); bg.addColorStop(0.75, '#16508f'); bg.addColorStop(1, '#0c2a63');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // sun rays from the surface
+    for (let i = 0; i < 7; i++) {
+      const x0 = 40 + i * 120 + sin(t * 0.4 + i) * 20, w = 26 + (i % 3) * 14;
+      const rg = ctx.createLinearGradient(0, 0, 0, 340); rg.addColorStop(0, 'rgba(255,255,255,.28)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + w, 0); ctx.lineTo(x0 + w - 70, 340); ctx.lineTo(x0 - 70 - w * 0.3, 340); ctx.closePath(); ctx.fill();
+    }
+    // surface line
+    ctx.beginPath(); for (let x = 0; x <= W; x += 8) { const y = 14 + sin(x * 0.03 + t * 1.3) * 3; if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2.5; ctx.stroke();
+    // sunken ship in the distance
+    ctx.fillStyle = '#1b4478'; ctx.beginPath(); ctx.moveTo(520, 372); ctx.lineTo(540, 332); ctx.lineTo(650, 326); ctx.lineTo(690, 352); ctx.lineTo(676, 372); ctx.closePath(); ctx.fill();
+    ctx.fillRect(572, 276, 5, 56); ctx.fillStyle = '#1f5088'; ctx.beginPath(); ctx.moveTo(577, 282); ctx.lineTo(618, 306); ctx.lineTo(577, 322); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#0f2f5c'; for (let i = 0; i < 4; i++) ctx.fillRect(560 + i * 26, 344, 10, 10);
+    // jellyfish
+    [[120, 120, 0], [690, 170, 2.2], [300, 200, 4]].forEach(([x, y, ph]) => {
+      const p = 0.5 + 0.5 * sin(t * 2 + ph), yy = y + sin(t * 0.5 + ph) * 18;
+      ctx.fillStyle = 'rgba(255,170,230,.55)'; ctx.beginPath(); ctx.ellipse(x, yy, 16, 10 + p * 3, 0, Math.PI, 0); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,190,240,.6)'; ctx.lineWidth = 1.5;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * 6, yy); ctx.quadraticCurveTo(x + k * 6 + sin(t * 3 + k + ph) * 4, yy + 12, x + k * 6, yy + 24); ctx.stroke(); }
+    });
+    // schools of fish
+    for (let f = 0; f < 3; f++) {
+      const dir = f % 2 ? -1 : 1, sp = 18 + f * 9, yb = 90 + f * 70;
+      for (let i = 0; i < 6; i++) {
+        const x = ((((t * sp * dir + i * 22 + f * 230) % (W + 120)) + (W + 120)) % (W + 120)) - 60, y = yb + sin(t * 1.5 + i * 0.9) * 6 + (i % 3) * 9;
+        ctx.fillStyle = ['#ffd166', '#ff8a5c', '#9be9ff'][f]; ctx.beginPath(); ctx.ellipse(x, y, 7, 3.2, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - dir * 6, y); ctx.lineTo(x - dir * 11, y - 3.5); ctx.lineTo(x - dir * 11, y + 3.5); ctx.fill();
+      }
+    }
+    // sea floor: sand, ripples, coral, seaweed, chest
+    const sand = ctx.createLinearGradient(0, 384, 0, H); sand.addColorStop(0, '#f0d79a'); sand.addColorStop(1, '#a98255');
+    ctx.fillStyle = sand; ctx.beginPath(); ctx.moveTo(0, 388);
+    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, 386 + sin(x * 0.015) * 4); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,80,40,.25)'; ctx.lineWidth = 1.5;
+    for (let k = 0; k < 4; k++) { ctx.beginPath(); for (let x = 0; x <= W; x += 10) { const y = 404 + k * 12 + sin(x * 0.04 + k) * 2; if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke(); }
+    const coral = (x, y, c, s) => { ctx.fillStyle = c; for (let i = -2; i <= 2; i++) { const h = (26 - Math.abs(i) * 6) * s; ctx.fillRect(x + i * 6 * s - 2, y - h, 5 * s, h); ctx.beginPath(); ctx.arc(x + i * 6 * s + 0.5, y - h, 3.5 * s, 0, TAU); ctx.fill(); } };
+    coral(80, 392, '#ff6f91', 1); coral(720, 392, '#ffb347', 1.1); coral(240, 394, '#c77dff', 0.7); coral(560, 394, '#ff6f91', 0.7);
+    const weed = (x, h, c) => { ctx.strokeStyle = c; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x, 394); for (let y = 0; y <= h; y += 6) ctx.lineTo(x + sin(t * 1.4 + y * 0.09 + x) * (3 + y * 0.12), 394 - y); ctx.stroke(); };
+    [30, 44, 150, 330, 480, 620, 760, 774].forEach((x, i) => weed(x, 40 + (i % 3) * 14, i % 2 ? '#2fbf71' : '#1f9a5a'));
+    ctx.fillStyle = '#7a4a22'; ctx.fillRect(160, 416, 36, 22); ctx.fillStyle = '#5a3414'; ctx.fillRect(160, 416, 36, 6); ctx.fillStyle = '#ffd23f'; ctx.fillRect(174, 422, 8, 8);
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
+    // rising bubbles (in front)
+    for (let i = 0; i < 26; i++) {
+      const sp = 14 + rnd(i, 2) * 20, x = rnd(i, 1) * W + sin(t * 1.2 + i) * 6, y = H - (((t * sp + rnd(i, 4) * H) % (H + 20)));
+      const r = 2 + rnd(i, 6) * 4; ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x - r * 0.4, y - r * 0.5, 1.5, 1.5);
+    }
+    drawNet(ctx, ...net, '#2fbf71');
+  }
+
+  function drawDoner(ctx, t, net) {
+    const W = C.W, H = C.H;
+    // wall: warm tiles with a pattern
+    ctx.fillStyle = '#f3e3c4'; ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < 330; y += 30) for (let x = ((y / 30) % 2) * 20; x < W; x += 40) {
+      ctx.fillStyle = (x / 40 + y / 30) % 3 === 0 ? '#e3694a' : '#e9d3a6'; ctx.fillRect(x + 1, y + 1, 38, 28);
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + 1, y + 1, 38, 3);
+    }
+    ctx.fillStyle = 'rgba(40,20,0,.18)'; ctx.fillRect(0, 0, W, H);
+    // neon sign
+    const on = Math.floor(t * 7) % 23 !== 0;
+    ctx.fillStyle = '#1b1030'; ctx.fillRect(260, 76, 280, 56); ctx.strokeStyle = on ? '#ff3b7a' : '#6a2a44'; ctx.lineWidth = 4; ctx.strokeRect(264, 80, 272, 48);
+    ctx.textAlign = 'center'; ctx.font = '700 44px "Jersey 10", system-ui, sans-serif';
+    ctx.fillStyle = on ? '#ffe45e' : '#6b6030'; ctx.shadowColor = on ? '#ffb000' : 'transparent'; ctx.shadowBlur = on ? 12 : 0; ctx.fillText('DÖNER', 400, 118); ctx.shadowBlur = 0;
+    // string lights with chilies
+    ctx.strokeStyle = '#4a2a14'; ctx.lineWidth = 2; ctx.beginPath(); for (let x = 0; x <= W; x += 10) { const y = 146 + Math.abs(sin(x / 800 * Math.PI * 4)) * 14; if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke();
+    for (let i = 0; i < 16; i++) { const x = 25 + i * 50, y = 146 + Math.abs(sin(x / 800 * Math.PI * 4)) * 14; ctx.fillStyle = i % 2 ? '#d7263d' : `rgba(255,228,120,${0.7 + 0.3 * sin(t * 3 + i)})`; ctx.beginPath(); if (i % 2) { ctx.ellipse(x, y + 8, 3, 8, 0, 0, TAU); } else ctx.arc(x, y + 6, 5, 0, TAU); ctx.fill(); }
+    // menu board
+    ctx.fillStyle = '#2a1a10'; ctx.fillRect(30, 176, 150, 90); ctx.fillStyle = '#3d2a1a'; ctx.fillRect(34, 180, 142, 82);
+    [['#ffe45e', 0], ['#9be9ff', 1], ['#ff8a5c', 2], ['#b5f0a0', 3]].forEach(([c, i]) => { ctx.fillStyle = c; ctx.fillRect(44, 190 + i * 18, 70 + (i * 17) % 40, 6); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(138, 190 + i * 18, 28, 6); });
+    // clock
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(700, 200, 26, 0, TAU); ctx.fill(); ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 4; ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(700, 200); ctx.lineTo(700 + cos(t * 0.1) * 14, 200 + sin(t * 0.1) * 14); ctx.stroke(); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(700, 200); ctx.lineTo(700 + cos(t * 1.2) * 20, 200 + sin(t * 1.2) * 20); ctx.stroke();
+    // evil eye charm
+    ctx.fillStyle = '#2a64d6'; ctx.beginPath(); ctx.arc(600, 200, 14, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(600, 200, 9, 0, TAU); ctx.fill(); ctx.fillStyle = '#69cbdc'; ctx.beginPath(); ctx.arc(600, 200, 5, 0, TAU); ctx.fill(); ctx.fillStyle = '#10151f'; ctx.beginPath(); ctx.arc(600, 200, 2.4, 0, TAU); ctx.fill();
+    // counter with food
+    ctx.fillStyle = '#7b4a22'; ctx.fillRect(0, 300, W, 86); ctx.fillStyle = '#9a6030'; ctx.fillRect(0, 300, W, 8); ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(0, 372, W, 14);
+    [[300, '#e0392b'], [340, '#58c24a'], [380, '#f6e9c8'], [420, '#e0a050']].forEach(([x, c]) => { ctx.fillStyle = '#c9ccd8'; ctx.fillRect(x, 286, 34, 16); ctx.fillStyle = c; ctx.fillRect(x + 3, 280, 28, 8); });
+    // the big rotating doner spit (left, behind the court)
+    const sx = 235, sw = (t * 2);
+    ctx.fillStyle = '#9aa3b8'; ctx.fillRect(sx - 2, 214, 4, 90);
+    for (let i = 0; i < 14; i++) {
+      const y = 222 + i * 5, hw = 12 + Math.min(i, 10) * 1.6 - (i > 10 ? (i - 10) * 3 : 0);
+      ctx.fillStyle = (i + Math.floor(sw * 2)) % 2 ? '#a35a2c' : '#8a4821'; ctx.fillRect(sx - hw, y, hw * 2, 5);
+      ctx.fillStyle = 'rgba(255,220,150,.45)'; ctx.fillRect(sx - hw + ((sw * 14 + i * 9) % (hw * 2 - 2)), y + 1, 3, 2);
+    }
+    const hg = ctx.createRadialGradient(sx + 40, 262, 4, sx + 40, 262, 50); hg.addColorStop(0, 'rgba(255,120,40,.4)'); hg.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = hg; ctx.fillRect(sx - 10, 210, 100, 100);
+    // steam above the counter
+    for (let i = 0; i < 6; i++) { const x = 330 + i * 18, y = 270 - (((t * 14 + i * 13) % 40)); ctx.fillStyle = `rgba(255,255,255,${0.35 - ((270 - y) / 40) * 0.3})`; ctx.beginPath(); ctx.arc(x + sin(t * 2 + i) * 3, y, 4, 0, TAU); ctx.fill(); }
+    // checkered floor
+    ctx.fillStyle = '#e9e2d0'; ctx.fillRect(0, 386, W, H - 386);
+    for (let y = 386, r = 0; y < H; y += 16, r++) for (let x = (r % 2) * 32 - 32; x < W; x += 64) { ctx.fillStyle = '#2b2b3a'; ctx.fillRect(x, y, 32, 16); }
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
+    // a fly buzzing about
+    const fx = 560 + sin(t * 2.3) * 120, fy = 230 + sin(t * 3.1) * 40; ctx.fillStyle = '#10151f'; ctx.fillRect(fx, fy, 3, 3); ctx.fillStyle = 'rgba(200,220,255,.6)'; ctx.fillRect(fx - 2, fy - 2 + (Math.floor(t * 30) % 2), 3, 2);
+    drawNet(ctx, ...net, '#b0642f');
+  }
+
+  function drawHole(ctx, t, net) {
+    const W = C.W, H = C.H, P = C.NET_X, PY = 135;
+    const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#05010f'); bg.addColorStop(0.7, '#150a33'); bg.addColorStop(1, '#2b1068');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    drawStars(ctx, t, 110, 380, 7);
+    // nebula glow
+    const ng = ctx.createRadialGradient(P, PY, 10, P, PY, 300); ng.addColorStop(0, 'rgba(255,120,60,.30)'); ng.addColorStop(0.4, 'rgba(180,60,200,.18)'); ng.addColorStop(1, 'rgba(60,20,120,0)');
+    ctx.fillStyle = ng; ctx.fillRect(0, 0, W, 330);
+    // accretion disk: tilted swirling rings
+    ctx.save(); ctx.translate(P, PY); ctx.scale(1, 0.34);
+    for (let k = 0; k < 9; k++) {
+      const r = 128 - k * 10, a = t * (0.5 + k * 0.12);
+      const hue = ['#ffe9c0', '#ffc46b', '#ff9a3c', '#ff6a4d', '#ee1a8c', '#b36bff', '#7a4bd8', '#ff9a3c', '#ffe9c0'][k];
+      ctx.strokeStyle = hue; ctx.globalAlpha = 0.55; ctx.lineWidth = 8; ctx.setLineDash([30 + k * 6, 14 + k * 3]); ctx.lineDashOffset = -a * 40;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.restore();
+    // event horizon with a bright rim and a lens glint
+    const rim = ctx.createRadialGradient(P, PY, 22, P, PY, 44); rim.addColorStop(0, 'rgba(0,0,0,1)'); rim.addColorStop(0.7, 'rgba(0,0,0,1)'); rim.addColorStop(0.85, 'rgba(255,200,120,.9)'); rim.addColorStop(1, 'rgba(255,120,60,0)');
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(P, PY, 44, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(P, PY, 28, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(P - 12 + Math.round(sin(t) * 2), PY - 10, 6, 2);
+    // matter spiralling in
+    for (let i = 0; i < 28; i++) {
+      const ph = (t * 0.25 + i / 28) % 1, a = i * 2.4 + ph * 5, r = 230 * (1 - ph) + 30;
+      ctx.fillStyle = `rgba(255,${160 + Math.round(ph * 80)},${100 + Math.round(ph * 120)},${0.15 + ph * 0.6})`; ctx.fillRect(P + cos(a) * r, PY + sin(a) * r * 0.55, 2 + ph * 2, 2 + ph * 2);
+    }
+    // drifting asteroids
+    [[0, 300, 190, 9], [1, 250, 170, 6], [2, 340, 205, 11]].forEach(([i, r, sy, sz]) => {
+      const a = t * (0.05 + i * 0.02) + i * 2.1, x = P + cos(a) * r, y = PY + 40 + sin(a) * sy * 0.45;
+      ctx.fillStyle = '#4a4070'; ctx.beginPath(); ctx.ellipse(x, y, sz, sz * 0.75, a, 0, TAU); ctx.fill(); ctx.fillStyle = '#6d62a0'; ctx.fillRect(x - sz * 0.5, y - sz * 0.5, sz * 0.5, 2);
+    });
+    // arena floor: floating glass plate with a neon grid and glowing rim
+    ctx.fillStyle = '#1a0e44'; ctx.beginPath(); ctx.moveTo(0, 392); ctx.lineTo(W, 392); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    const fg = ctx.createLinearGradient(0, 388, 0, H); fg.addColorStop(0, 'rgba(180,100,255,.55)'); fg.addColorStop(1, 'rgba(60,20,140,.1)'); ctx.fillStyle = fg; ctx.fillRect(0, 388, W, H - 388);
+    ctx.strokeStyle = 'rgba(120,230,255,.45)'; ctx.lineWidth = 1.4;
+    for (let x = -80; x <= W + 80; x += 40) { ctx.beginPath(); ctx.moveTo(P + (x - P) * 0.55, 394); ctx.lineTo(P + (x - P) * 1.5, H); ctx.stroke(); }
+    for (let y = 398, k = 0; y < H; k++, y += 10 + k * 3) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    ctx.fillStyle = `rgba(120,230,255,${0.7 + 0.3 * sin(t * 3)})`; ctx.fillRect(0, 390, W, 3);
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(0, C.GROUND + 1, W, 2);
+    // energy pylons at the edges
+    [40, W - 40].forEach((x, i) => { ctx.fillStyle = '#2a1a66'; ctx.fillRect(x - 6, 300, 12, 90); ctx.fillStyle = `rgba(255,120,220,${0.6 + 0.4 * sin(t * 4 + i)})`; ctx.beginPath(); ctx.arc(x, 296, 9, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,120,220,.15)'; ctx.fillRect(x - 3, 0, 6, 296); });
+    drawNet(ctx, ...net, '#b36bff');
+  }
+
+  /* The backdrop of the chosen stage (default: the beach). net = { b, t } while the net leans (Faulty Level). */
+  function drawBackground(ctx, t, net, stage) {
+    const args = [net ? net.b : C.NET_X, net ? net.t : C.NET_X];
+    if (stage === 'moon') return drawMoon(ctx, t, args);
+    if (stage === 'water') return drawWater(ctx, t, args);
+    if (stage === 'doner') return drawDoner(ctx, t, args);
+    if (stage === 'hole') return drawHole(ctx, t, args);
+    drawBeach(ctx, t, net);
+  }
 
   /* ------------------------------------------------------ Alman hat */
   function flagPatch(ctx, x, y, w, h, rot) {

@@ -243,3 +243,8 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #menu .build{position:absolute;top:8px;right:14px;margin:0;font-size:9px;letter-spacing:.5px;opacity:.55}
 /* v45: smaller logo in the main menu */
 #menu h1{max-width:380px}
+
+/* v47: compact option rows in the online lobby (stage row added) */
+#online .seg button{height:24px;min-width:44px;padding:0 8px;margin:2px;font-size:14px}
+#online .opt{font-size:13px;gap:0}
+#online .opts{margin:0}

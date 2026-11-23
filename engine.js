@@ -144,9 +144,29 @@
     return true;
   }
 
-  function stepBallFree(ball, rng, bx, tx) {
-    ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
+  /* Stages: each one changes the look (scene.js) and some also the physics. ballG / blobG = gravity factors, jump = jump speed factor,
+   * speed = running speed factor, drag = per-frame ball speed factor (water), pull = a vortex that gently pulls the ball (black hole). */
+  const STAGES = {
+    beach: { name: 'Beach' },
+    moon:  { name: 'Moon Station', ballG: 0.45, blobG: 0.45, jump: 0.8 },
+    water: { name: 'Underwater', ballG: 0.55, blobG: 0.75, jump: 0.88, speed: 0.8, drag: 0.992 },
+    doner: { name: 'Döner Shop' },
+    hole:  { name: 'Black Hole Arena', pull: { x: 400, y: 135, r: 230, a: 0.1 } }
+  };
+  const STAGE_IDS = Object.keys(STAGES);
+  /* gravity, drag and pull on the free-flying ball for one frame (also used by the CPU's prediction) */
+  function ballForces(ball, st) {
+    ball.vy += C.BALL_G * (st.ballG || 1) + (ball.dip > 0 ? C.DIP_G : 0);
     if (ball.dip > 0) ball.dip--;
+    if (st.drag) { ball.vx *= st.drag; ball.vy *= st.drag; }
+    if (st.pull) {
+      const dx = st.pull.x - ball.x, dy = st.pull.y - ball.y, d = Math.hypot(dx, dy);
+      if (d < st.pull.r && d > 1) { const f = st.pull.a * (1 - d / st.pull.r); ball.vx += dx / d * f; ball.vy += dy / d * f; }
+    }
+  }
+
+  function stepBallFree(ball, rng, bx, tx, st) {
+    ballForces(ball, st || STAGES.beach);
     ball.x += ball.vx; ball.y += ball.vy;
     const r = C.BALL_R;
     if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; }
@@ -285,6 +305,8 @@
       this.level = opts.level || 'normal';
       this.target = opts.target || 11;
       this.fight = !!opts.fight;       // Volley Fight mode: special key swings a weapon, no power-ups
+      this.stageId = STAGES[opts.stage] ? opts.stage : 'beach';   // see STAGES
+      this.stage = STAGES[this.stageId];
       this.blobs = [];
       const homes = n => (n === 1 ? [0.5] : [0.28, 0.72]);
       opts.teams.forEach((team, t) => {
@@ -340,7 +362,7 @@
       const s = { x: this.ball.x, y: this.ball.y, vx: this.ball.vx, vy: this.ball.vy, dip: this.ball.dip || 0 };
       const r = () => 0.5, nb = this.netBase(), nt = this.netTopX();
       for (let t = 0; t < 400; t++) {
-        stepBallFree(s, r, nb, nt);
+        stepBallFree(s, r, nb, nt, this.stage);
         if (s.vy > 0 && s.y >= C.HIT_Y) return { x: s.x, y: s.y, t };
       }
       return { x: s.x, y: s.y, t: 400 };
@@ -455,15 +477,15 @@
       b.alman = this.alman[b.team] > 0;
       b.aura = this.aura[b.team] > 0;
       const slow = b.alman ? C.ALMAN_MULT : 1;
-      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow;
+      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow * (this.stage.speed || 1);
       b.x += b.vx;
       const r = C.BLOB_R;
       if (b.team === 0) b.x = clamp(b.x, r, Math.min(this.netXAt(b.y - r), this.netXAt(b.y + r)) - C.NET_HW - r);
       else b.x = clamp(b.x, Math.max(this.netXAt(b.y - r), this.netXAt(b.y + r)) + C.NET_HW + r, C.W - r);
 
       // Alman Mode: 80 % of the jump height needs sqrt(0.8) of the launch speed
-      if (inp.jump && b.onGround) { b.vy = C.JUMP_V * (b.alman ? Math.sqrt(C.ALMAN_MULT) : 1); this.emit('jump', { blob: b.id }); }
-      b.vy += C.BLOB_G; b.y += b.vy;
+      if (inp.jump && b.onGround) { b.vy = C.JUMP_V * (b.alman ? Math.sqrt(C.ALMAN_MULT) : 1) * (this.stage.jump || 1); this.emit('jump', { blob: b.id }); }
+      b.vy += C.BLOB_G * (this.stage.blobG || 1); b.y += b.vy;
       const rest = C.GROUND - r;
       if (b.y >= rest) { b.y = rest; b.vy = 0; }
     }
@@ -628,8 +650,7 @@
       if (this.state === 'over') { this.stepBallDead(); return; }
 
       // move the ball
-      ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
-      if (ball.dip > 0) ball.dip--;
+      ballForces(ball, this.stage);
       const sp0 = Math.hypot(ball.vx, ball.vy);
       if (sp0 > C.BALL_CAP) { ball.vx *= C.BALL_CAP / sp0; ball.vy *= C.BALL_CAP / sp0; }
       ball.x += ball.vx; ball.y += ball.vy;
@@ -669,13 +690,13 @@
 
     stepBallDead() {
       const ball = this.ball, r = C.BALL_R;
-      ball.vy += C.BALL_G; ball.x += ball.vx; ball.y += ball.vy;
+      ball.vy += C.BALL_G * (this.stage.ballG || 1); ball.x += ball.vx; ball.y += ball.vy;
       if (ball.y + r >= C.GROUND) { ball.y = C.GROUND - r; ball.vy = -Math.abs(ball.vy) * 0.5; ball.vx *= 0.8; }
       if (ball.x < r || ball.x > C.W - r) ball.vx *= -1;
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, aimAt, AIM_PERIOD, MELEE, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, STAGES, STAGE_IDS, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, aimAt, AIM_PERIOD, MELEE, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

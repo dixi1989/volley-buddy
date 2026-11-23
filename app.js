@@ -1,7 +1,7 @@
 /* Beach Volley Hero – frontend: canvas rendering, input, menus, high scores, sound */
 (function () {
   'use strict';
-  const { C, Sim, LEVELS, FIGURES } = VB;
+  const { C, Sim, LEVELS, FIGURES, STAGE_IDS } = VB;
   const { Net } = VBNet;
   const $ = id => document.getElementById(id);
   const canvas = $('game'), mainCtx = canvas.getContext('2d');
@@ -20,7 +20,7 @@
   };
   const LEVEL_MAP = { leicht: 'easy', mittel: 'normal', schwer: 'hard' };   // saved by earlier versions
   const LEVEL_LABEL = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
-  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true, fight: false }, store.get('vb_settings', {}));
+  const settings = Object.assign({ level: 'normal', target: 11, muted: false, music: true, fight: false, stage: 'beach' }, store.get('vb_settings', {}));
   settings.level = LEVEL_MAP[settings.level] || settings.level;
   if (!LEVELS[settings.level]) settings.level = 'normal';
   let names = Object.assign({ p1: '', p2: '' }, store.get('vb_names', {}));
@@ -29,8 +29,13 @@
   const saveSettings = () => store.set('vb_settings', settings);
 
   $('level').value = settings.level; $('target').value = String(settings.target); $('onRules').value = 'fight'; $('onTarget').value = String(settings.target);
+  if (!['beach', 'moon', 'water', 'doner', 'hole', 'random'].includes(settings.stage)) settings.stage = 'beach';
+  $('stagePick').value = settings.stage; $('onStage').value = settings.stage;
+  $('stagePick').addEventListener('change', () => { settings.stage = $('stagePick').value; $('onStage').value = settings.stage; saveSettings(); syncSegs(); });
+  $('onStage').addEventListener('change', () => { settings.stage = $('onStage').value; $('stagePick').value = settings.stage; saveSettings(); syncSegs(); });
+  const pickStage = v => v === 'random' ? STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)] : v;
   /* pixel buttons side by side replace the dropdowns (the hidden <select> keeps the value, so the rest of the code is unchanged) */
-  const SEGS = ['level', 'target', 'onRules', 'onTarget'].map(id => {
+  const SEGS = ['level', 'target', 'stagePick', 'onRules', 'onTarget', 'onStage'].map(id => {
     const sel = $(id), box = document.querySelector('[data-for="' + id + '"]');
     [...sel.options].forEach(o => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = o.textContent; b.dataset.v = o.value; b.dataset.k = 'seg:' + id + ':' + o.value;
@@ -554,7 +559,7 @@
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
     else { teams = [[H('p1', p1)], [A()]]; tn = [p1, 'CPU']; }
-    game = new Sim({ teams, level: settings.level, target: settings.target, fight: settings.fight });
+    game = new Sim({ teams, level: settings.level, target: settings.target, fight: settings.fight, stage: pickStage(settings.stage) });
     game.mode = mode; game.teamNames = tn;
     const humans = game.blobs.filter(b => b.controller === 'human');
     humans.forEach((b, i) => { b.keymap = mode === 'solo' ? 'BOTH' : (i === 0 ? 'P1' : 'P2'); });
@@ -567,18 +572,24 @@
   function startThrone(name) {
     const pool = Object.keys(FIGURES).filter(id => id !== looks.p1.style);
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-    throne = { name, opp: pool.slice(0, THRONE_ROUNDS), round: 0, total: 0, state: 'fight' };
+    throne = { name, opp: pool.slice(0, THRONE_ROUNDS), stages: throneStages(), round: 0, total: 0, state: 'fight' };
     startThroneRound();
+  }
+  /* rounds 1-5 on shuffled regular stages, the final in the Black Hole Arena */
+  function throneStages() {
+    const a = ['beach', 'moon', 'water', 'doner'].sort(() => Math.random() - 0.5);
+    while (a.length < THRONE_ROUNDS - 1) a.push(a[a.length % 4]);
+    return a.slice(0, THRONE_ROUNDS - 1).concat('hole');
   }
   function startThroneRound() {
     const r = throne.round, style = throne.opp[r];
     const free = PALETTE.map(p => p[1]).filter(c => c !== looks.p1.color);
     const teams = [[{ controller: 'human', color: looks.p1.color, style: looks.p1.style, label: throne.name }],
                    [{ controller: 'ai', color: free[(r * 3 + 1) % free.length], style, label: FIGURES[style].name }]];
-    game = new Sim({ teams, level: 't' + (r + 1), target: r === THRONE_ROUNDS - 1 ? 7 : 5, fight: true });
+    game = new Sim({ teams, level: 't' + (r + 1), target: r === THRONE_ROUNDS - 1 ? 7 : 5, fight: true, stage: throne.stages[r] });
     game.mode = 'throne'; game.teamNames = [throne.name, FIGURES[style].name];
     game.blobs.filter(b => b.controller === 'human').forEach(b => { b.keymap = 'BOTH'; });
-    game.say((r === THRONE_ROUNDS - 1 ? 'Final: ' : 'Round ' + (r + 1) + '/' + THRONE_ROUNDS + ': ') + 'vs ' + FIGURES[style].name, 150);
+    game.say((r === THRONE_ROUNDS - 1 ? 'Final: ' : 'Round ' + (r + 1) + '/' + THRONE_ROUNDS + ': ') + 'vs ' + FIGURES[style].name + ' · ' + game.stage.name, 150);
     lastSetup = { mode: 'throne', p1: throne.name, p2: '' };
     setPhase('play');
   }
@@ -819,7 +830,7 @@
   function render(t) {
     const g = game || demo;
     ctx = loCtx; ctx.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0);
-    Scene.drawBackground(ctx, t, g && g.tilt ? { b: g.netBase(), t: g.netTopX() } : null);
+    Scene.drawBackground(ctx, t, g && g.tilt ? { b: g.netBase(), t: g.netTopX() } : null, g && g.stageId);
     if (g) {
       g._ballRot = g._ballRot || { rot: 0 };
       Scene.drawTowels(ctx, g, t);
@@ -878,7 +889,7 @@
   }
 
   function createRoom() {
-    settings.fight = $('onRules').value === 'fight'; settings.target = +$('onTarget').value; saveSettings(); $('target').value = String(settings.target);
+    settings.fight = $('onRules').value === 'fight'; settings.target = +$('onTarget').value; settings.stage = $('onStage').value; saveSettings(); $('target').value = String(settings.target);
     const me = myLook(); lobbyBusy(true); onlineStatus('Opening a room…');
     online = { role: 'host', me, gid: 0, seq: 0, rin: { m: 0, jc: 0, sc: 0, rm: 0 }, seenJc: 0, seenSc: 0, myRm: false };
     Net.host({
@@ -925,8 +936,8 @@
     const hn = mine.n || 'Host';
     online.gid++; online.seq = 0; online.myRm = false;
     online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
-    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0 };
-    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight });
+    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0, stage: pickStage(settings.stage) };
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight, stage: online.cfg.stage });
     game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
     setPhase('play');
   }
@@ -937,7 +948,7 @@
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
     const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
-    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight });
+    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight, stage: STAGE_IDS.includes(cfg.stage) ? cfg.stage : 'beach' });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
     setPhase('play');
   }

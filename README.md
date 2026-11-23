@@ -12,6 +12,8 @@ Beach volleyball as a PWA with gummy-bear characters (HTML/Canvas/JS, works offl
   - *Faulty Level* – a broken spirit level: for 10 s the net leans over toward your side (and its foot moves with it), so your half gets smaller and your opponents' half bigger.
   - *Alman Mode* – your opponents get a flag-covered bucket hat, white socks and sandals for 10 s: they move at 80 % speed and jump 80 % as high, and a short techno version of the German anthem plays.
 
+Stages: Beach (classic), **Moon Station** (low gravity, high floaty jumps), **Underwater** (slow, heavy movement, ball drifts), **Döner Shop** (cosmetic) and **Black Hole Arena** (a black hole above the net gently pulls the ball). Choose one in the menu or *Random*; online the host's choice applies. In the Volley Throne rounds 1–5 use random stages and the final is the Black Hole Arena.
+
 Run locally: `python3 -m http.server`, then open http://localhost:8000
 
 Live: https://dixi1989.github.io/volley-buddy/
