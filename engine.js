@@ -8,9 +8,10 @@
   const C = {
     W: 800, H: 450, GROUND: 400,
     NET_X: 400, NET_HW: 5, NET_TOP: 225,
-    BLOB_R: 30, BALL_R: 18,
+    BLOB_R: 30, BALL_R: 24,           // ball radius (was 18)
     BLOB_SPEED: 6.4, JUMP_V: -15, BLOB_G: 0.62,
-    BALL_G: 0.30, BALL_MAXV: 13, BALL_MAX_UP: 10.5, HIT_MIN: 7.5,
+    // ball physics: speeds x0.8 and gravity x0.64 versus vb-v28 -> same trajectories, 20 % slower
+    BALL_G: 0.192, BALL_MAXV: 10.4, BALL_MAX_UP: 8.4, HIT_MIN: 6, BALL_CAP: 14.4,
     MAX_TOUCHES: 3,
     SERVE_DELAY: 80, POINT_DELAY: 100,
     HIT_Y: 280,                       // height at which the AI wants to meet the ball
@@ -23,7 +24,7 @@
     AURA_FRAMES: 600, AURA_MULT: 1.3,   // 10 s, hit box 30 % larger
     // Volley Fight: weapons
     WEAPON_CD: 96, WEAPON_SWING: 14,    // cooldown 1.6 s, swing lasts 14 frames
-    DIP_G: 0.2,                         // extra gravity on a ball hit by the birch rod
+    DIP_G: 0.128,                        // extra gravity on a ball hit by the birch rod
     SHOT_R: 7,                          // ranged weapons: projectile radius (speed, cooldown ... see RANGED)
     SHOT_BOOST: 1.38, SHOT_SLOW: 0.55   // ball speed factor: bolt hits a ball flying to the opponents (boost) / toward the shooter's side (slow)
   };
@@ -58,10 +59,10 @@
   /* Melee weapons: reach beyond the body, ball speed after the hit, direction (fwd = toward the opponents, up < 0 = upward, aimW = how much the
    * direction of the hit relative to the body counts), cooldown in frames, optional dip = frames of extra gravity. */
   const MELEE = {
-    sword:  { reach: 62,  v: 16.5, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 96 },               // all-rounder
-    katana: { reach: 58,  v: 18,   fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 78 },               // fastest, flat, recharges quickly
-    lasso:  { reach: 112, v: 13.5, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 126 },              // long reach, high lob, slow recharge
-    rod:    { reach: 52,  v: 15,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
+    sword:  { reach: 62,  v: 13.2, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 96 },               // all-rounder
+    katana: { reach: 58,  v: 14.4,  fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 78 },               // fastest, flat, recharges quickly
+    lasso:  { reach: 112, v: 10.8, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 126 },              // long reach, high lob, slow recharge
+    rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
   };
   const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : MELEE[weaponOf(style)].cd);
   /* Direction of a ranged shot (no auto-aim): the player HOLDS the special key and the aim sweeps up and down; releasing fires.
@@ -450,7 +451,7 @@
       ball.vx = vx; ball.vy = vy;
       ball.spin = clamp(ball.vx * 0.04, -0.5, 0.5);
 
-      if (b.touchCd === 0) this.registerTouch(b, 'hit', Math.min(1, sp / 13));
+      if (b.touchCd === 0) this.registerTouch(b, 'hit', Math.min(1, sp / C.BALL_MAXV));
     }
 
     /* Counts a touch of the ball (classic hit or weapon hit): max. 3 per side. */
@@ -494,7 +495,7 @@
             boost = ball.vx * toOpp > 0;
             const f = boost ? C.SHOT_BOOST : C.SHOT_SLOW;
             ball.vx *= f; ball.vy *= f;
-            if (boost) { const n = Math.hypot(ball.vx, ball.vy); if (n > 18) { ball.vx *= 18 / n; ball.vy *= 18 / n; } }
+            if (boost) { const n = Math.hypot(ball.vx, ball.vy); if (n > C.BALL_CAP) { ball.vx *= C.BALL_CAP / n; ball.vy *= C.BALL_CAP / n; } }
           }
           this.emit('shotHit', { boost, x: ball.x, y: ball.y });
           dead = s.k === 1;                            // a bullet is used up; pellets fly on
@@ -569,7 +570,7 @@
       ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
       if (ball.dip > 0) ball.dip--;
       const sp0 = Math.hypot(ball.vx, ball.vy);
-      if (sp0 > 18) { ball.vx *= 18 / sp0; ball.vy *= 18 / sp0; }
+      if (sp0 > C.BALL_CAP) { ball.vx *= C.BALL_CAP / sp0; ball.vy *= C.BALL_CAP / sp0; }
       ball.x += ball.vx; ball.y += ball.vy;
       const r = C.BALL_R;
       if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; this.emit('wall', {}); }
