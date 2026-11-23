@@ -57,3 +57,8 @@ ol li small{color:#b6a5ee}
 .howto li{background:#140a3399;border-left:3px solid #69cbdc;border-radius:4px;padding:6px 10px;line-height:1.35}
 .howto b{color:#69cbdc}
 .rank{margin:0 0 8px;color:#ff6fc0;font-weight:700;min-height:1em}
+/* online lobby */
+#btnOnline{grid-column:1/-1}
+.bigcode{font-size:clamp(36px,9vw,56px);font-weight:900;letter-spacing:.35em;padding-left:.35em;color:#69cbdc;text-shadow:3px 3px 0 #ee1a8c;margin:6px 0}
+input.codein{width:7em;text-transform:uppercase;letter-spacing:.3em;font-weight:800}
+#onStatus{min-height:1.4em}

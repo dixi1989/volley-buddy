@@ -23,6 +23,7 @@
         <button data-mode="duel"><b>1 : 1</b><small>Two players, one keyboard</small></button>
         <button data-mode="team"><b>2 : 2</b><small>Team up against 2 CPU opponents</small></button>
         <button data-mode="solo"><b>1 : 1 vs CPU</b><small>You against the computer</small></button>
+        <button id="btnOnline"><b>🌐 Online 1 : 1</b><small>Play a friend over the internet</small></button>
       </div>
       <div class="opts">
         <label>CPU level
@@ -65,6 +66,34 @@
         <button id="btnStart">Start</button>
         <button id="btnSetupBack" class="ghost">Back</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Online lobby -->
+  <div id="online" class="overlay" hidden>
+    <div class="panel small-panel">
+      <h2>🌐 Online 1 : 1</h2>
+      <p class="sub">Create a room and send the code to a friend – or enter a friend's code.</p>
+      <div class="fields">
+        <div class="prow">
+          <label><span class="t"><b>Your name</b> <small>A D · W · Ctrl (or arrow keys)</small></span>
+            <input id="onName" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
+          <div class="look" id="onLook"></div>
+        </div>
+      </div>
+      <div id="onChoose">
+        <div class="row"><button id="btnCreate">Create room</button></div>
+        <div class="row">
+          <input id="onCodeIn" class="codein" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE">
+          <button id="btnJoin">Join</button>
+        </div>
+      </div>
+      <div id="onWait" hidden>
+        <div class="bigcode" id="onCode">····</div>
+        <div class="row"><button id="btnShare" class="ghost">Share invite link</button></div>
+      </div>
+      <p id="onStatus" class="sub"></p>
+      <div class="row"><button id="btnOnBack" class="ghost">Back</button></div>
     </div>
   </div>
 
@@ -118,6 +147,7 @@
         <li><b>Three touches:</b> each team may hit the ball up to 3 times in a row. A 4th touch is a fault.</li>
         <li><b>Serve:</b> the ball hangs in the air for a moment and then drops by itself – but you can hit it right away.</li>
         <li><b>Modes:</b> 1 : 1 on one keyboard, 2 : 2 with two humans against two CPU bears, or 1 : 1 against the CPU (Easy / Normal / Hard).</li>
+        <li><b>Online:</b> one player creates a room and shares the 4-letter code (or the invite link), the other joins. The host's browser runs the game, so the host should keep the tab in the foreground.</li>
         <li><b>Power-ups:</b> every 30 s each player gets one falling from the sky. Catch it with your bear (3 can be stored), then press Ctrl to use it. See the Power-ups page for what they do.</li>
         <li><b>High scores:</b> wins against the CPU count – points = lead × 100 × level factor + longest rally × 10.</li>
       </ul>
@@ -128,7 +158,7 @@
   <!-- Pause -->
   <div id="pause" class="overlay" hidden>
     <div class="panel small-panel">
-      <h2>Paused</h2>
+      <h2 id="pauseTitle">Paused</h2>
       <div class="row">
         <button id="btnResume">Resume</button>
         <button id="btnQuit" class="ghost">Menu</button>
@@ -149,8 +179,10 @@
     </div>
   </div>
 </div>
+<script src="vendor/peerjs.min.js"></script>
 <script src="engine.js"></script>
 <script src="scene.js"></script>
+<script src="net.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const { C, Sim, LEVELS } = VB;
+  const { Net } = VBNet;
   const $ = id => document.getElementById(id);
   const canvas = $('game'), ctx = canvas.getContext('2d');
 
@@ -26,7 +27,8 @@
   /* --------------------------------------------------------------- state */
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
-  const MENU_PHASES = new Set(['menu', 'setup', 'scores', 'powerups', 'controls', 'howto']);
+  let online = null;            // online match state (see 'online play' below)
+  const MENU_PHASES = new Set(['menu', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto']);
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
@@ -56,6 +58,7 @@
     phase = p;
     $('menu').hidden = p !== 'menu';
     $('setup').hidden = p !== 'setup';
+    $('online').hidden = p !== 'online';
     $('scores').hidden = p !== 'scores';
     $('powerups').hidden = p !== 'powerups';
     $('controls').hidden = p !== 'controls';
@@ -293,6 +296,8 @@
     if (typing) {
       if (phase === 'setup' && e.key === 'Enter' && e.target.tagName === 'INPUT') beginMatch();
       else if (phase === 'setup' && e.key === 'Escape') setPhase('menu');
+      else if (phase === 'online' && e.key === 'Enter' && e.target.id === 'onCodeIn') $('btnJoin').click();
+      else if (phase === 'online' && e.key === 'Escape') leaveOnline();
       return;
     }
     if (phase === 'play' || phase === 'pause') {
@@ -307,8 +312,9 @@
     if (e.code === 'KeyF') {
       try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (err) { /* not allowed */ }
     }
-    if (phase === 'play' && (e.code === 'KeyP' || e.code === 'Escape')) setPhase('pause');
+    if (phase === 'play' && (e.code === 'KeyP' || e.code === 'Escape')) openPause();
     else if (phase === 'pause' && (e.code === 'KeyP' || e.code === 'Escape')) setPhase('play');
+    else if (phase === 'online' && e.code === 'Escape') leaveOnline();
     else if (phase === 'setup' && e.code === 'Escape') setPhase('menu');
     if (phase === 'menu') {
       if (e.code === 'Digit1') openSetup('duel');
@@ -318,8 +324,14 @@
   });
   addEventListener('pointerdown', () => { audio(); startMusic(); });
   addEventListener('keyup', e => keys.delete(e.code));
-  addEventListener('blur', () => { keys.clear(); if (phase === 'play') setPhase('pause'); });
+  addEventListener('blur', () => { keys.clear(); if (phase === 'play' && !online) setPhase('pause'); });   // online: the match cannot be paused
   addEventListener('beforeunload', e => { if (phase === 'play' || phase === 'pause') { e.preventDefault(); e.returnValue = ''; } });
+
+  function openPause() {
+    $('pauseTitle').textContent = online ? 'Online match' : 'Paused';
+    $('btnResume').textContent = 'Resume';
+    setPhase('pause');
+  }
 
   /* --------------------------------------------------------- player names */
   function openSetup(mode) {
@@ -367,7 +379,11 @@
     const w = game.winner, s = game.score;
     const mult = LEVELS[game.level].mult;
     let title, info = `${s[0]} : ${s[1]} · longest rally ${game.longestRally}`, rank = '';
-    if (game.mode === 'duel') {
+    if (game.mode === 'online') {
+      title = w === game.localTeam ? '🏆 You win!' : `${game.teamNames[w]} wins!`;
+      info += ' · online';
+      $('btnAgain').disabled = false; $('btnAgain').textContent = 'Play again';
+    } else if (game.mode === 'duel') {
       duel[w]++; store.set('vb_duel', duel);
       title = `🏆 ${game.teamNames[w]} wins!`;
       info += ` · record ${duel[0]}:${duel[1]}`;
@@ -436,9 +452,12 @@
     scores = []; duel = [0, 0]; store.set('vb_scores', scores); store.set('vb_duel', duel); renderScores();
   };
   $('btnResume').onclick = () => setPhase('play');
-  $('btnQuit').onclick = () => { game = null; setPhase('menu'); };
-  $('btnAgain').onclick = () => startGame(lastSetup.mode, lastSetup.p1, lastSetup.p2);
-  $('btnMenu').onclick = () => { game = null; setPhase('menu'); };
+  $('btnQuit').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
+  $('btnAgain').onclick = () => {
+    if (online) { online.myRm = true; $('btnAgain').disabled = true; $('btnAgain').textContent = 'Waiting for opponent…'; return; }
+    startGame(lastSetup.mode, lastSetup.p1, lastSetup.p2);
+  };
+  $('btnMenu').onclick = () => { if (online) leaveOnline(); game = null; setPhase('menu'); };
   $('level').onchange = $('target').onchange = () => { settings.level = $('level').value; settings.target = +$('target').value; saveSettings(); };
 
   let installEvt = null;
@@ -504,7 +523,7 @@
     }
     // collected power-ups next to the score, plus active effect timers
     for (let tm = 0; tm < 2; tm++) {
-      const inv = g.inv[tm], hasHuman = g.blobs.some(b => b.team === tm && b.controller === 'human');
+      const inv = g.inv[tm], hasHuman = g.mode === 'online' ? tm === g.localTeam : g.blobs.some(b => b.team === tm && b.controller === 'human');
       for (let i = 0; i < C.PU_MAX_INV; i++) {
         const cx = tm === 0 ? 270 - i * 32 : 530 + i * 32, cy = 34, filled = i < inv.length;
         ctx.fillStyle = 'rgba(26,10,61,.62)'; rr(cx - 14, cy - 14, 28, 28, 7); ctx.fill();
@@ -555,6 +574,186 @@
     if (!MENU_PHASES.has(phase)) drawHUD(g, t);
   }
 
+  /* ------------------------------------------------------------ online play */
+  /* The host runs the whole simulation (and the CPU-free 1 vs 1 rules); the guest sends its keys and renders the snapshots.
+   * Everything is derived from the snapshots, so lost packets (unreliable channel) simply do not matter. */
+  const cleanName = v => (v || '').replace(/\s+/g, ' ').trim().slice(0, 12);
+  const goodColor = c => (PALETTE.some(p => p[1] === c) ? c : PALETTE[0][1]);
+  const otherColor = c => (PALETTE.find(p => p[1] !== c) || PALETTE[1])[1];
+
+  function renderOnlineLook() {
+    const box = $('onLook'); box.innerHTML = '';
+    PALETTE.forEach(([name, col]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (looks.p1.color === col ? ' sel' : ''); b.style.background = col; b.title = name;
+      b.onclick = () => { looks.p1.color = col; store.set('vb_looks', looks); renderOnlineLook(); };
+      box.appendChild(b);
+    });
+    const gap = document.createElement('span'); gap.className = 'gap'; box.appendChild(gap);
+    [['m', '♂ Male'], ['f', '♀ Female']].forEach(([g, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (looks.p1.gender === g ? ' sel' : ''); b.textContent = label;
+      b.onclick = () => { looks.p1.gender = g; store.set('vb_looks', looks); renderOnlineLook(); };
+      box.appendChild(b);
+    });
+  }
+  function onlineStatus(text) { $('onStatus').textContent = text || ''; }
+  function showLobby(text, code) {
+    $('onName').value = names.p1;
+    $('onChoose').hidden = false; $('onWait').hidden = true;
+    lobbyBusy(false);
+    if (code) $('onCodeIn').value = code;
+    onlineStatus(text);
+    renderOnlineLook();
+    game = null; setPhase('online');
+  }
+  function leaveOnline(text) {
+    const was = !!online;
+    if (online && online.helloTimer) clearInterval(online.helloTimer);
+    online = null; Net.close();
+    if (was && text) showLobby(text); else if (phase === 'online' || was) { game = null; setPhase('menu'); }
+  }
+  function myLook() {
+    names.p1 = cleanName($('onName').value); store.set('vb_names', names);
+    return { n: names.p1, c: looks.p1.color, g: looks.p1.gender };
+  }
+  function lobbyBusy(on) { $('btnCreate').disabled = $('btnJoin').disabled = on; }
+
+  function openOnline(code) {
+    if (!Net.available()) { showLobby('Online play needs the PeerJS library (vendor/peerjs.min.js) – reload the page.'); return; }
+    showLobby('', code);
+    setTimeout(() => (code ? $('onName') : $('onName')).focus(), 30);
+  }
+
+  function createRoom() {
+    const me = myLook(); lobbyBusy(true); onlineStatus('Opening a room…');
+    online = { role: 'host', me, gid: 0, seq: 0, rin: { m: 0, jc: 0, sc: 0, rm: 0 }, seenJc: 0, seenSc: 0, myRm: false };
+    Net.host({
+      onCode(code) {
+        $('onChoose').hidden = true; $('onWait').hidden = false; $('onCode').textContent = code;
+        online.code = code; onlineStatus('Waiting for your friend… (keep this page open)');
+      },
+      onOpen() { onlineStatus('Friend connected – starting…'); },
+      onData(m) {
+        if (!online) return;
+        if (m.t === 'h' && online.gid === 0) hostStartMatch(m);
+        else if (m.t === 'i') online.rin = VBNet.cleanInput(m);
+      },
+      onClose() { if (online) leaveOnline('Your opponent left the match.'); },
+      onError(text) { lobbyBusy(false); leaveOnline(text); showLobby(text); }
+    });
+  }
+  function joinRoom() {
+    const code = $('onCodeIn').value.toUpperCase().replace(/[^A-Z]/g, '');
+    if (code.length !== 4) { onlineStatus('Enter the 4-letter room code.'); return; }
+    const me = myLook(); lobbyBusy(true); onlineStatus('Connecting…');
+    online = { role: 'guest', me, gid: -1, lastQ: -1, q: [], primed: false, starve: 0, pendEv: [], jc: 0, sc: 0, prev: {}, myRm: false };
+    Net.join(code, {
+      onOpen() {
+        onlineStatus('Connected – waiting for the host…');
+        const hello = () => Net.send({ t: 'h', n: me.n, c: me.c, g: me.g });
+        hello(); online.helloTimer = setInterval(hello, 300);     // unreliable channel: repeat until the first snapshot arrives
+      },
+      onData(m) { if (online && m.t === 's') guestReceive(m); },
+      onClose() { if (online) leaveOnline('The host left the match.'); },
+      onError(text) { lobbyBusy(false); leaveOnline(text); showLobby(text); }
+    });
+  }
+
+  /* ---- host ---- */
+  function hostStartMatch(h) {
+    const mine = online.me;
+    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm' };
+    if (online.guest.color === mine.c) online.guest.color = otherColor(mine.c);
+    newOnlineGame();
+  }
+  function newOnlineGame() {
+    const mine = online.me, gu = online.guest;
+    const hn = mine.n || 'Host';
+    online.gid++; online.seq = 0; online.myRm = false;
+    online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
+    online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], genders: [mine.g, gu.gender], target: settings.target };
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, gender: mine.g, label: hn }], [{ controller: 'human', color: gu.color, gender: gu.gender, label: gu.name }]], level: 'normal', target: settings.target });
+    game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
+    setPhase('play');
+  }
+
+  /* ---- guest ---- */
+  function buildGuestGame(cfg) {
+    online.gid = cfg.gid; online.lastQ = -1; online.q.length = 0; online.pendEv.length = 0; online.primed = false; online.myRm = false;
+    if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
+    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', label: cleanName(cfg.names[i]) });
+    const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
+    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target });
+    game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
+    setPhase('play');
+  }
+  function guestReceive(m) {
+    if (m.cfg && typeof m.cfg === 'object' && m.cfg.gid !== online.gid && Array.isArray(m.cfg.names) && Array.isArray(m.cfg.colors) && Array.isArray(m.cfg.genders)) buildGuestGame(m.cfg);
+    if (m.g !== online.gid || !game || m.q <= online.lastQ) return;
+    online.lastQ = m.q; online.q.push(m);
+  }
+
+  /* one 60 Hz tick of an online match (host: simulate + send; guest: send keys + show the received state) */
+  function stepOnline(now) {
+    const live = phase === 'play';
+    const inp = live ? readFor({ keymap: 'BOTH' }) : { left: false, right: false, jump: false, special: false };
+    if (Date.now() - Net.lastRx > 6000) { leaveOnline(online.role === 'host' ? 'Your opponent disconnected.' : 'Lost the connection to the host.'); return; }
+
+    if (online.role === 'host') {
+      Object.assign(game.blobs[0].input, inp);
+      const rin = online.rin, g1 = game.blobs[1].input;
+      g1.left = !!(rin.m & 1); g1.right = !!(rin.m & 2);
+      g1.jump = !!(rin.m & 4) || rin.jc !== online.seenJc;          // a tap whose packet was seen only as a counter change still counts
+      g1.special = !!(rin.m & 8) || rin.sc !== online.seenSc;
+      online.seenJc = rin.jc; online.seenSc = rin.sc;
+      game.step();
+      game.blobs.forEach(Scene.jelly);
+      for (const e of game.events) { playEvent(e); if (e.type === 'hit') Scene.poke(game.blobs[e.blob], e); if (e.type === 'win') showOver(); }
+      Net.send(VBNet.snapshot(game, ++online.seq, online.gid, (game.frames < 180 || game.frames % 60 === 0) ? online.cfg : null));
+      if (phase === 'over' && online.myRm && rin.rm) newOnlineGame();
+      return;
+    }
+
+    // guest: key presses (counters make short taps survive packet loss)
+    const pv = online.prev;
+    if (inp.jump && !pv.jump) online.jc++;
+    if (inp.special && !pv.special) online.sc++;
+    online.prev = inp;
+    Net.send(VBNet.packInput(inp, online.jc, online.sc, online.myRm));
+
+    // play back snapshots with a small jitter buffer
+    const q = online.q;
+    if (!online.primed && q.length >= 2) online.primed = true;
+    if (!online.primed) return;
+    if (!q.length) { if (++online.starve > 10) online.primed = false; return; }
+    online.starve = 0;
+    while (q.length > 3) online.pendEv.push(...q.shift().ev);        // far behind: catch up, but keep their sounds
+    const s = q.shift();
+    try { VBNet.applySnapshot(game, s); } catch (err) { return; }
+    game.events = online.pendEv.concat(game.events); online.pendEv.length = 0;
+    game.blobs.forEach(Scene.jelly);
+    for (const e of game.events) {
+      playEvent(e);
+      if (e.type === 'hit' && game.blobs[e.blob]) Scene.poke(game.blobs[e.blob], e);
+      if (e.type === 'win' && phase !== 'over') showOver();
+    }
+  }
+
+  $('btnOnline').onclick = () => openOnline();
+  $('btnCreate').onclick = createRoom;
+  $('btnJoin').onclick = joinRoom;
+  $('btnOnBack').onclick = () => { lobbyBusy(false); leaveOnline(); setPhase('menu'); };
+  $('onCodeIn').oninput = () => { $('onCodeIn').value = $('onCodeIn').value.toUpperCase().replace(/[^A-Z]/g, ''); };
+  $('btnShare').onclick = async () => {
+    const url = location.origin + location.pathname + '?room=' + (online && online.code || '');
+    const text = 'Play Beach Volley Buddy with me! Room code: ' + (online && online.code);
+    try {
+      if (navigator.share) await navigator.share({ title: 'Beach Volley Buddy', text, url });
+      else { await navigator.clipboard.writeText(url); onlineStatus('Invite link copied!'); }
+    } catch (err) { /* cancelled */ }
+  };
+  { const room = (new URLSearchParams(location.search).get('room') || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+    if (room.length === 4) setTimeout(() => openOnline(room), 0); }
+
   /* ------------------------------------------------------------- main loop */
   const STEP = 1000 / 60;
   let last = performance.now(), acc = 0, demoDone = 0;
@@ -569,7 +768,9 @@
     acc += Math.min(100, now - last); last = now;
     while (acc >= STEP) {
       acc -= STEP;
-      if (phase === 'play' || phase === 'over') {
+      if (online && game && (phase === 'play' || phase === 'over' || phase === 'pause')) {
+        stepOnline(now);
+      } else if (phase === 'play' || phase === 'over') {
         if (phase === 'play') game.blobs.forEach(b => { if (b.controller === 'human') Object.assign(b.input, readFor(b)); });
         game.step();
         game.blobs.forEach(Scene.jelly);
