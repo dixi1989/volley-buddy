@@ -65,6 +65,15 @@
     $('howto').hidden = p !== 'howto';
     $('pause').hidden = p !== 'pause';
     $('over').hidden = p !== 'over';
+    // keyboard navigation: focus the first button of the end-of-match / pause dialog
+    if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
+  }
+  /* arrow keys move the focus between the buttons of the end-of-match / pause dialog (Enter or Space presses it) */
+  function moveDialogFocus(dir) {
+    const btns = [...document.querySelectorAll('#' + phase + ' button')].filter(b => !b.disabled);
+    if (!btns.length) return;
+    const i = btns.indexOf(document.activeElement);
+    btns[(i + dir + btns.length) % btns.length].focus();
   }
 
   /* -------------------------------------------------------------- layout */
@@ -303,6 +312,11 @@
     if (phase === 'play' || phase === 'pause') {
       // swallow Ctrl+W/A/D etc. as far as the browser allows
       if (GAME_CODES.has(e.code) || e.ctrlKey) e.preventDefault();
+    }
+    if ((phase === 'over' || phase === 'pause') && /^Arrow/.test(e.code)) {
+      e.preventDefault();
+      if (!e.repeat) moveDialogFocus(e.code === 'ArrowLeft' || e.code === 'ArrowUp' ? -1 : 1);
+      return;
     }
     if (e.repeat) { keys.add(e.code); return; }
     keys.add(e.code);

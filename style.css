@@ -62,3 +62,4 @@ ol li small{color:#b6a5ee}
 .bigcode{font-size:clamp(36px,9vw,56px);font-weight:900;letter-spacing:.35em;padding-left:.35em;color:#69cbdc;text-shadow:3px 3px 0 #ee1a8c;margin:6px 0}
 input.codein{width:7em;text-transform:uppercase;letter-spacing:.3em;font-weight:800}
 #onStatus{min-height:1.4em}
+button:focus-visible{outline:3px solid #fff;outline-offset:3px}
