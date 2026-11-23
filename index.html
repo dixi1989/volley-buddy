@@ -47,12 +47,14 @@
         <button data-mode="solo"><span class="mi">🤖</span><b>1 vs CPU</b><small>Play solo</small></button>
       </div>
       <div class="opts">
-        <label>CPU level
-          <select id="level"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
-        </label>
-        <label>Points to win
-          <select id="target"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
-        </label>
+        <div class="opt"><span>CPU level</span>
+          <select id="level" hidden><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+          <div class="seg" data-for="level"></div>
+        </div>
+        <div class="opt"><span>Points to win</span>
+          <select id="target" hidden><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
+          <div class="seg" data-for="target"></div>
+        </div>
       </div>
       <div class="row"><button id="btnModeBack" class="ghost">Back</button></div>
     </div>
@@ -97,12 +99,14 @@
       </div>
       <div id="onChoose">
         <div class="opts">
-          <label>Rules
-            <select id="onRules"><option value="classic">Classic</option><option value="fight" selected>Volley Fight</option></select>
-          </label>
-          <label>Points to win
-            <select id="onTarget"><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
-          </label>
+          <div class="opt"><span>Rules</span>
+            <select id="onRules" hidden><option value="classic">Classic</option><option value="fight" selected>Volley Fight</option></select>
+            <div class="seg" data-for="onRules"></div>
+          </div>
+          <div class="opt"><span>Points to win</span>
+            <select id="onTarget" hidden><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
+            <div class="seg" data-for="onTarget"></div>
+          </div>
         </div>
         <div class="row">
           <button id="btnCreate">Create room</button>

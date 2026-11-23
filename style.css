@@ -33,6 +33,14 @@ input{width:70%;text-align:center;font-size:18px}
 .padstate{font-weight:700}
 .padstate.on{color:#8dffb8}
 .padstate.off{color:#b6a5ee}
+.opts{align-items:flex-start}
+.opt{display:flex;flex-direction:column;align-items:center;gap:6px;color:#d9ccff;font-size:15px}
+.seg{display:flex;gap:6px}
+.seg button{min-width:58px;height:30px;margin:3px;padding:0 12px;border:0;border-radius:0;background:#140a33;color:#d9ccff;font-size:16px;letter-spacing:0;font-weight:400;
+  box-shadow:0 -2px 0 #69cbdc,0 2px 0 #69cbdc,-2px 0 0 #69cbdc,2px 0 0 #69cbdc}
+.seg button:hover{background:#2b1a73}
+.seg button:active{transform:none}
+.seg button.sel{background:#ee1a8c;color:#fff;box-shadow:0 -2px 0 #fff,0 2px 0 #fff,-2px 0 0 #fff,2px 0 0 #fff}
 .keys .small{color:#b6a5ee;font-size:clamp(10px,1.5vw,12px)}
 kbd{background:#69cbdc;color:#1a0a45;border-radius:3px;padding:1px 6px;margin:0 2px;font:700 12px ui-monospace,monospace;box-shadow:2px 2px 0 #ee1a8c}
 ol{text-align:left;margin:8px auto;padding-left:34px;max-width:480px;font-size:clamp(13px,2vw,16px)}
@@ -164,3 +172,27 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .lrow{margin-top:3px}
 #online .pbanner{display:none}
 .build{font-size:11px;opacity:.65;margin-top:6px;letter-spacing:1px}
+
+/* v33: compact hero select so it fits the 800x450 stage without a scrollbar (TV / big screen first) */
+.look .sw{width:20px;height:20px;margin:3px 2px}
+.look .sw::before{left:3px;top:3px;width:5px;height:5px}
+.look .gd{width:38px;height:26px;margin:3px 2px}
+.lrow{gap:4px;flex-wrap:nowrap}
+.look .gap{flex:1 1 0;min-width:2px}
+#setupPanel{padding:10px 16px}
+#setupPanel h2{font-size:26px;margin:0}
+#setupPanel .pcard{gap:5px;padding-bottom:6px}
+#setupPanel canvas.prev{width:52px;height:52px}
+#setupPanel .look .tile canvas{width:46px;height:46px}
+#setupPanel .look{gap:4px}
+#setupPanel .hdesc{min-height:2.3em;margin:2px 0}
+#setupPanel .pbanner{padding:2px 14px 2px 12px}
+#setupPanel .row{margin:2px 0}
+#setupPanel .fields{margin:2px 0}
+#online .opts{margin:2px 0}
+#online .opt{gap:2px}
+#setupPanel canvas.prev{width:64px;height:64px}
+#setupPanel .look .tile canvas{width:54px;height:54px}
+.look .sw{width:22px;height:22px}
+#online .panel{padding:6px 14px}
+#online .look{gap:3px}

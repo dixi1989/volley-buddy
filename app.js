@@ -29,6 +29,18 @@
   const saveSettings = () => store.set('vb_settings', settings);
 
   $('level').value = settings.level; $('target').value = String(settings.target); $('onRules').value = 'fight'; $('onTarget').value = String(settings.target);
+  /* pixel buttons side by side replace the dropdowns (the hidden <select> keeps the value, so the rest of the code is unchanged) */
+  const SEGS = ['level', 'target', 'onRules', 'onTarget'].map(id => {
+    const sel = $(id), box = document.querySelector('[data-for="' + id + '"]');
+    [...sel.options].forEach(o => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = o.textContent; b.dataset.v = o.value; b.dataset.k = 'seg:' + id + ':' + o.value;
+      b.onclick = () => { sel.value = o.value; sel.dispatchEvent(new Event('change')); syncSegs(); };
+      box.appendChild(b);
+    });
+    return [sel, box];
+  });
+  function syncSegs() { SEGS.forEach(([sel, box]) => [...box.children].forEach(b => b.classList.toggle('sel', b.dataset.v === sel.value))); }
+  syncSegs();
 
   /* ------------------------------------------------------- touch controls */
   const touchMode = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || 'ontouchstart' in window;
@@ -142,6 +154,7 @@
   }
 
   function setPhase(p) {
+    syncSegs();
     phase = p;
     $('menu').hidden = p !== 'menu';
     $('modeSel').hidden = p !== 'mode';
@@ -188,16 +201,16 @@
     if (!cur) { els[0].focus(); return; }
     const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
     const horiz = code === 'left' || code === 'right', sgn = (code === 'left' || code === 'up') ? -1 : 1;
-    // 1st choice: the nearest control in the same row (left / right) or column (up / down); 2nd: the nearest one in that general direction
-    let best = null, bd = Infinity, aligned = false;
+    // nearest control in that direction; a control that overlaps the current one on the other axis (same row / column) is strongly preferred
+    let best = null, bd = Infinity;
     for (const e of els) {
       if (e === cur) continue;
       const r = e.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
-      const main = (horiz ? dx : dy) * sgn, side = Math.abs(horiz ? dy : dx);
+      const main = (horiz ? dx : dy) * sgn;
       if (main < 4) continue;
-      const same = horiz ? side < Math.min(r.height, cr.height) * 0.5 : side < Math.min(r.width, cr.width) * 0.5;   // centres overlap on the other axis
-      const d = main + side * 2.5;
-      if ((same && !aligned) || (same === aligned && d < bd)) { bd = d; best = e; aligned = same; }
+      const gap = horiz ? Math.max(0, Math.max(r.top, cr.top) - Math.min(r.bottom, cr.bottom)) : Math.max(0, Math.max(r.left, cr.left) - Math.min(r.right, cr.right));
+      const d = main + gap * 8;
+      if (d < bd) { bd = d; best = e; }
     }
     if (best) best.focus();
   }
