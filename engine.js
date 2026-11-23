@@ -43,12 +43,13 @@
     cyborg: { name: 'Cyborg', weapon: 'shotgun' },
     cowboy: { name: 'Cowboy', weapon: 'revolver' },
     ninja: { name: 'Ninja', weapon: 'katana' },
+    kebabi: { name: 'Kebabi', weapon: 'kebabknife' },
     adventurer: { name: 'Adventurer', weapon: 'lasso' },
     santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: 'rod' }
   };
   const DEFAULT_FIGURE = 'pixel';
   /* Weapon categories: 'melee' (swing, smashes the ball faster) and 'ranged' (fires a bolt over the net that speeds up / slows down the ball). */
-  const WEAPON_KIND = { katana: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', shotgun: 'ranged', revolver: 'ranged' };
+  const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', shotgun: 'ranged', revolver: 'ranged' };
   /* Ranged weapons (no auto-aim): n projectiles per shot spread by `spread` rad, speed v px/frame, flight time `life` frames, cooldown `cd` frames. */
   const RANGED = {
     shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 100 },      // 3 pellets, short range, slow to reload
@@ -61,6 +62,7 @@
   const MELEE = {
     sword:  { reach: 62,  v: 13.2, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 96 },               // all-rounder
     katana: { reach: 58,  v: 14.4,  fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 78 },               // fastest, flat, recharges quickly
+    kebabknife: { reach: 58, v: 14.4, fwd: 1.0, up: -0.06, aimW: 0.15, cd: 78 },              // Kebabi's doner knife: same values as the katana
     lasso:  { reach: 112, v: 10.8, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 126 },              // long reach, high lob, slow recharge
     rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
   };

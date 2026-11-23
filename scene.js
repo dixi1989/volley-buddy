@@ -44,10 +44,12 @@
   const NH = '#232b4a', NH2 = '#151a30';          // ninja cloth
   const WH = '#f6f6fa', WH2 = '#cfcfdd';          // santa beard / hair
   const RED = '#d7263d', RED2 = '#a01a2c';
+  const KEB = ['#a35a2c', '#7a4120'];             // Kebabi: roasted doner meat
+  const CAP = ['#2f6fd6', '#1f4a9e', '#6aa0f0'];    // Kebabi's baseball cap: base, shadow, light
 
   function drawPerson(ctx, b, ball, t) {
     const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f', v = b.style;
-    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'cyborg', cow = v === 'cowboy';
+    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'cyborg', cow = v === 'cowboy', kebab = v === 'kebabi';
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
@@ -56,7 +58,7 @@
     const moving = Math.abs(b.vx) > 0.1, air = !b.onGround;
     const ph = Math.floor(t * 9 + b.id) % 2;                          // walk cycle
     const cy = j.sq > 0.16 ? 2 : (j.sq < -0.14 ? -2 : 0);              // crouch on landing, stretch on take-off
-    const sk = robot ? METAL : SKIN[fem ? 'f' : 'm'], hr = HAIR[fem ? 'f' : 'm'], col = b.color;
+    const sk = robot ? METAL : kebab ? KEB : SKIN[fem ? 'f' : 'm'], hr = HAIR[fem ? 'f' : 'm'], col = b.color;
     const dark = shade(col, -0.38), light = shade(col, 0.4);
     ctx.save(); ctx.translate(gx, gy);
     if (b.aura) {                                                      // Aura+10: glowing ring showing the enlarged hit box
@@ -73,10 +75,21 @@
     [[-11, 0], [1, 1]].forEach(([x, s]) => {
       const h = 14 - cy - lift(s);
       part(x, 16 + cy, 10, h, sk[0], true); part(x + 8, 16 + cy, 2, h, sk[1]);
+      if (kebab) { part(x - 1, 30 - lift(s) - 4, 12, 4, '#f6f6fa', true); part(x - 1, 30 - lift(s) - 2, 12, 2, '#c9cfdc', false); }   // white sneakers
       if (ninja) { part(x, 30 - lift(s) - 6, 10, 6, NH, false); part(x, 30 - lift(s) - 8, 10, 2, col, false); }   // boots with a coloured wrap
     });
     // torso (Santa gets a belly, the ninja pecs and abs)
-    if (santa && !fem) { part(-14, 0 + cy, 28, 16, sk[0], true); part(12, 0 + cy, 2, 16, sk[1]); }
+    if (kebab) {
+      // the body is a doner spit: wide at the top, narrowing downwards, in slices of roasted meat
+      const HW = [14, 14, 14, 12, 12, 12, 10, 10, 10, 10];
+      HW.forEach((hw, i) => {
+        const y = -26 + i * 4 + cy, h = i === 9 ? 6 : 4;
+        const face = i >= 1 && i <= 4;                                  // lighter patch so the face stays readable
+        part(-hw, y, hw * 2, h, face ? (i % 2 ? '#d6945a' : '#cc8a50') : (i % 2 ? '#b0642f' : '#9a5326'), true); part(hw - 2, y, 2, h, face ? '#a86a38' : KEB[1], false);
+        if (!face) part(-hw + 2 + ((i * 6) % 14), y + 2, 2, 2, '#d08a4a', false);   // crispy bits
+      });
+    }
+    else if (santa && !fem) { part(-14, 0 + cy, 28, 16, sk[0], true); part(12, 0 + cy, 2, 16, sk[1]); }
     else { part(-12, -2 + cy, 24, 18, sk[0], true); part(10, -2 + cy, 2, 18, sk[1]); }
     if (ninja) {
       part(0, 0 + cy, 2, 8, sk[1]);
@@ -84,16 +97,27 @@
     }
     // arms (raised when jumping, swinging when running); the ninja has stronger ones with gloves and wristbands
     const aw = ninja ? 10 : 8;
-    [[ninja ? -22 : -20, 0], [12, 1]].forEach(([x, s]) => {
+    [[ninja ? -22 : kebab ? -18 : -20, 0], [kebab ? 10 : 12, 1]].forEach(([x, s]) => {
       const off = air ? -14 : (moving ? ((s + ph) % 2 ? 2 : -2) : 0), y = -2 + cy + off;
       part(x, y, aw, 18, sk[0], true); part(x + (s ? aw - 2 : 0), y, 2, 18, sk[1]);
       if (ninja) { part(x, y + 10, aw, 8, NH, false); part(x, y + 8, aw, 2, col, false); }
     });
     // head
-    part(-12, -26 + cy, 24, 24, sk[0], true); part(10, -26 + cy, 2, 24, sk[1]); part(-12, -4 + cy, 24, 2, sk[1]);
+    if (!kebab) { part(-12, -26 + cy, 24, 24, sk[0], true); part(10, -26 + cy, 2, 24, sk[1]); part(-12, -4 + cy, 24, 2, sk[1]); }
     const dx = ball.x - b.x, dy = ball.y - b.y;
     const ox = dx > 10 ? 2 : (dx < -10 ? 0 : 1), oy = dy < -30 ? 0 : 2;
-    if (ninja) {
+    if (kebab) {
+      // face on the spit: big eyes that follow the ball, moustache (him) or lashes + blush (her), a grin
+      [-8, 4].forEach(x => { part(x, -16 + cy, 4, 6, '#fff', false); part(x + ox, -16 + cy + oy, 2, 4, '#1b2230', false); });
+      if (!fem) { part(-8, -10 + cy, 6, 2, '#2e1a0d', false); part(2, -10 + cy, 6, 2, '#2e1a0d', false); part(-10, -8 + cy, 2, 2, '#2e1a0d', false); part(8, -8 + cy, 2, 2, '#2e1a0d', false); }
+      else { part(-10, -18 + cy, 4, 2, '#2e1a0d', false); part(6, -18 + cy, 4, 2, '#2e1a0d', false); part(-10, -8 + cy, 4, 2, '#f08a9a', false); part(6, -8 + cy, 4, 2, '#f08a9a', false); }
+      part(-4, -6 + cy, 8, 2, '#4a1f0e', false); part(-6, -8 + cy, 2, 2, '#4a1f0e', false); part(4, -8 + cy, 2, 2, '#4a1f0e', false);
+      // baseball cap: crown with a badge, visor, button, and the skewer poking out of the top
+      part(-2, -44 + cy, 4, 8, METAL[0], true); part(-4, -46 + cy, 8, 2, METAL[1], true);
+      part(-12, -36 + cy, 24, 8, CAP[0], true); part(-12, -36 + cy, 24, 2, CAP[2], false); part(10, -36 + cy, 2, 8, CAP[1], false);
+      part(-4, -34 + cy, 8, 4, '#f6f6fa', false); part(-2, -32 + cy, 4, 2, RED, false); part(-2, -38 + cy, 4, 2, CAP[1], false);
+      part(-14, -28 + cy, 28, 4, CAP[1], true); part(-14, -28 + cy, 28, 2, CAP[0], false);
+    } else if (ninja) {
       // black hood with a face slit, headband with flying tails (and a ponytail for her)
       part(-12, -26 + cy, 24, 24, NH, false); part(-12, -6 + cy, 24, 2, NH2, false); part(10, -26 + cy, 2, 24, NH2, false);
       part(-10, -18 + cy, 20, 8, sk[0], false); part(-10, -12 + cy, 20, 2, sk[1], false);
@@ -186,7 +210,7 @@
     ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
     fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
     // Alman Mode: bucket hat with little German flags (sits on top of whatever the figure wears)
-    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : adv ? -38 : cow ? -46 : robot ? -26 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
+    if (b.alman) { ctx.save(); ctx.translate(0, (kebab ? -34 : santa ? -34 : adv ? -38 : cow ? -46 : robot ? -26 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
     if (b.fight) drawWeapon(ctx, b, t, cy);
     ctx.restore();
   }
@@ -196,6 +220,11 @@
     katana(ctx) {      // long slightly curved blade, gold guard, dark wrapped handle
       px(ctx, -8, -2, 12, 4, '#2a1f33'); px(ctx, -8, -2, 2, 4, '#c9a24a');
       px(ctx, 4, -3, 4, 6, '#d7b24a'); px(ctx, 8, -2, 46, 4, '#e8eef6'); px(ctx, 8, 0, 46, 2, '#aab6c8'); px(ctx, 54, -2, 4, 2, '#e8eef6');
+    },
+    kebabknife(ctx) {  // long slim doner knife: black handle with rivets, narrow blade with a scrap of meat on it
+      px(ctx, -8, -2, 12, 4, '#1b1b22'); px(ctx, -4, -1, 2, 2, '#aab6c8'); px(ctx, 0, -1, 2, 2, '#aab6c8');
+      px(ctx, 4, -4, 3, 8, '#8a93a6'); px(ctx, 7, -2, 47, 4, '#e8eef6'); px(ctx, 7, 0, 47, 2, '#aab6c8'); px(ctx, 54, -1, 4, 2, '#e8eef6');
+      px(ctx, 30, -4, 6, 2, '#a35a2c'); px(ctx, 32, -6, 2, 2, '#d08a4a');
     },
     sword(ctx) {       // broad blade, crossguard, brown grip
       px(ctx, -8, -2, 10, 4, '#6b3f1d'); px(ctx, -8, -3, 2, 6, '#c9a24a');
@@ -267,7 +296,7 @@
 
   function drawLabel(ctx, b) {
     ctx.font = '700 12px "Jersey 10", system-ui, sans-serif'; ctx.textAlign = 'center';
-    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0) - (b.style === 'santa' || b.style === 'cowboy' ? 12 : 0);   // sit above the hat
+    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0) - (b.style === 'santa' || b.style === 'cowboy' || b.style === 'kebabi' ? 12 : 0);   // sit above the hat
     ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.strokeText(b.label, b.x, ly, 96);
     ctx.fillStyle = 'rgba(30,12,60,.95)'; ctx.fillText(b.label, b.x, ly, 96);
     if (b.fight && b.cd > 0) {                                           // weapon recharge bar

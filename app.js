@@ -51,6 +51,7 @@
   const WEAPON_INFO = {
     sword: ['Sword', 'All-rounder: solid smash, medium reach.'],
     katana: ['Katana', 'Fastest, flat smash and a short recharge.'],
+    kebabknife: ['Doner knife', 'Fastest, flat smash and a short recharge (like the katana).'],
     lasso: ['Lasso', 'Very long reach: lobs the ball high over the net. Slow recharge.'],
     rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
     shotgun: ['Shotgun', '3 pellets, short range, slow reload. Hold the key to aim, release to fire.'],
