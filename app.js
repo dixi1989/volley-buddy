@@ -85,6 +85,7 @@
     canvas.width = Math.round(C.W * k * dpr);
     canvas.height = Math.round(C.H * k * dpr);
     ctx.setTransform(canvas.width / C.W, 0, 0, canvas.height / C.H, 0, 0);
+    $('stage').style.setProperty('--k', Math.floor(C.W * k) / C.W);
   }
   addEventListener('resize', resize); resize();
 
@@ -612,7 +613,7 @@
   function onlineStatus(text) { $('onStatus').textContent = text || ''; }
   function showLobby(text, code) {
     $('onName').value = names.p1;
-    $('onChoose').hidden = false; $('onWait').hidden = true;
+    $('onChoose').hidden = false; $('onWait').hidden = true; $('onFields').hidden = false;
     lobbyBusy(false);
     if (code) $('onCodeIn').value = code;
     onlineStatus(text);
@@ -642,7 +643,7 @@
     online = { role: 'host', me, gid: 0, seq: 0, rin: { m: 0, jc: 0, sc: 0, rm: 0 }, seenJc: 0, seenSc: 0, myRm: false };
     Net.host({
       onCode(code) {
-        $('onChoose').hidden = true; $('onWait').hidden = false; $('onCode').textContent = code;
+        $('onChoose').hidden = true; $('onWait').hidden = false; $('onFields').hidden = true; $('onCode').textContent = code;
         online.code = code; onlineStatus('Waiting for your friend… (keep this page open)');
       },
       onOpen() { onlineStatus('Friend connected – starting…'); },

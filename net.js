@@ -63,12 +63,13 @@
 
     /* Opens a room: cb.onCode(code), cb.onOpen(), cb.onData(msg), cb.onClose(), cb.onError(text) */
     host(cb) {
-      this.close(); this.cb = cb; this.closed = false;
+      this.close(); this.cb = cb; this.closed = false; this.code = null;
+      const giveUp = setTimeout(() => { if (!this.code) this._fail({ type: 'network' }); }, 15000);   // matchmaking server did not answer
       const attempt = n => {
         const code = randCode();
         const peer = new root.Peer(PREFIX + code);
         this.peer = peer;
-        peer.on('open', () => cb.onCode(code));
+        peer.on('open', () => { this.code = code; clearTimeout(giveUp); cb.onCode(code); });
         peer.on('connection', conn => {
           if (this.conn) { conn.close(); return; }       // room is full
           this._wire(conn);
