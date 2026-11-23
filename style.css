@@ -229,3 +229,9 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #menu .modes .throne small{color:#5a2a00;font-size:11px}
 #menu h1{max-width:440px}
 #menu .modes{margin:4px 0}
+/* v41: smaller main category buttons so the rest of the menu moves up */
+#menu .modes button:not(.throne){padding:7px 6px;gap:1px}
+#menu .modes button:not(.throne) .mi{font-size:20px;line-height:1}
+#menu .modes button:not(.throne) b{font-size:16px}
+#menu .modes button:not(.throne) small{font-size:10px}
+#menu .modes{gap:10px;margin:2px 0}
