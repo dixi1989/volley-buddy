@@ -153,3 +153,4 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .hdesc{min-height:2.4em;padding:3px 8px;margin:3px 0 2px}
 #online .lrow{margin-top:3px}
 #online .pbanner{display:none}
+.build{font-size:11px;opacity:.65;margin-top:6px;letter-spacing:1px}
