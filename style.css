@@ -104,7 +104,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .pname{display:flex;gap:10px;align-items:center}
 .pname input{flex:1;min-width:0;width:auto}
 canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;background:linear-gradient(#6f6bdc,#f066b8 70%,#ffc3a8);border:2px solid #69cbdc;border-radius:4px}
-.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .look .tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px 4px;background:#140a33;border:2px solid #69cbdc44;border-radius:4px;color:#d9ccff;font-size:13px;box-shadow:none;letter-spacing:0;font-weight:400}
 .look .tile canvas{width:72px;height:72px;max-width:100%;image-rendering:pixelated;background:linear-gradient(#6f6bdc,#f066b8 70%,#ffc3a8);border-radius:3px}
 .look .tile:hover{background:#2b1a73}
@@ -129,3 +129,6 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 .look .tile .cat{font-size:10px;color:#9be9ff;line-height:1}
 .look .tile .cat.melee{color:#ffb86b}
 .look .tile{font-size:12px}
+.look .tile canvas{width:60px;height:60px}
+.look .tile{font-size:11px}
+#online .look .tile canvas,#online canvas.prev{width:44px;height:44px}

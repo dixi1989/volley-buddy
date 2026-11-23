@@ -24,7 +24,7 @@
     // Volley Fight: weapons
     WEAPON_CD: 96, WEAPON_SWING: 14,    // cooldown 1.6 s, swing lasts 14 frames
     WEAPON_REACH: 58, WEAPON_V: 16.5,   // reach beyond the body, ball speed after a weapon hit (classic hits: max 13)
-    SHOT_CD: 84, SHOT_V: 15, SHOT_R: 7, // ranged weapons: cooldown 1.4 s, bolt speed, bolt radius
+    SHOT_R: 7,                          // ranged weapons: projectile radius (speed, cooldown ... see RANGED)
     SHOT_BOOST: 1.38, SHOT_SLOW: 0.55   // ball speed factor: bolt hits a ball flying to the opponents (boost) / toward the shooter's side (slow)
   };
 
@@ -39,15 +39,28 @@
    * a per-figure ability that can act on the ball. */
   const FIGURES = {
     pixel: { name: 'Pixel Hero', weapon: 'sword' },
-    robot: { name: 'Robot', weapon: 'blaster' },
+    cyborg: { name: 'Cyborg', weapon: 'shotgun' },
+    cowboy: { name: 'Cowboy', weapon: 'revolver' },
     ninja: { name: 'Ninja', weapon: 'katana' },
     adventurer: { name: 'Adventurer', weapon: 'lasso' },
     santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: 'rod' }
   };
   const DEFAULT_FIGURE = 'pixel';
   /* Weapon categories: 'melee' (swing, smashes the ball faster) and 'ranged' (fires a bolt over the net that speeds up / slows down the ball). */
-  const WEAPON_KIND = { katana: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', blaster: 'ranged' };
-  const kindOf = style => WEAPON_KIND[(FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon];
+  const WEAPON_KIND = { katana: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', shotgun: 'ranged', revolver: 'ranged' };
+  /* Ranged weapons (no auto-aim): n projectiles per shot spread by `spread` rad, speed v px/frame, flight time `life` frames, cooldown `cd` frames. */
+  const RANGED = {
+    shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 100 },      // 3 pellets, short range, slow to reload
+    revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 42 }        // one bullet, quick to fire again
+  };
+  const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
+  const kindOf = style => WEAPON_KIND[weaponOf(style)];
+  const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : C.WEAPON_CD);
+  /* Direction of a ranged shot: forward and a bit upward from the ground; in the air it follows the jump (rising: up, falling: down). */
+  function shotAngle(b) {
+    const a = b.onGround ? -0.32 : Math.max(-0.25, Math.min(0.35, b.vy * 0.03));
+    return b.team === 0 ? a : Math.PI - a;
+  }
 
   const LEVELS = {
     easy:   { delay: 14, err: 46, move: 0.72, jump: 0.55, grab: 0.25, use: 0.010, wpn: 0.06, mult: 1.0 },
@@ -198,8 +211,15 @@
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
       }
 
-      // Volley Fight, ranged weapon: now and then shoot at the ball (slows it down when it comes at us, speeds it up when it flies to the opponents)
-      if (sim.fight && kindOf(b.style) === 'ranged' && b.cd === 0 && sim.state === 'play' && rng() < p.wpn * 0.35) inp.special = true;
+      // Volley Fight, ranged weapon (no auto-aim): shoot when the ball is on the line of fire
+      if (sim.fight && kindOf(b.style) === 'ranged') {
+        if (b.cd === 0 && sim.state === 'play') {
+          const W = RANGED[weaponOf(b.style)], ang = shotAngle(b), dx = (ball.x - b.x) * dir;
+          if (dx > 40 && dx < W.v * W.life * 0.9) {
+            if (Math.abs(ball.y - (b.y - 4 + dx * Math.tan(dir === 1 ? ang : Math.PI - ang))) < 30 && rng() < p.wpn * 2) inp.special = true;
+          }
+        }
+      }
       // Volley Fight, melee weapon: swing when the ball is in reach
       else if (sim.fight && kindOf(b.style) === 'melee' && b.cd === 0 && b.swing === 0 && (sim.state === 'play' || sim.state === 'serve') &&
           !(sim.lastTouchTeam === b.team && sim.touches[b.team] >= C.MAX_TOUCHES) &&
@@ -246,6 +266,7 @@
       this.pred = { x: 200, y: 280, t: 99 };
       // power-ups
       this.items = []; this.puId = 0;
+      this.volley = 0; this.ballVol = 0;
       this.shots = [];              // Volley Fight: bolts of ranged weapons in flight [{x, y, vx, vy, team, life}]
       this.puTimer = C.PU_INTERVAL;
       this.inv = [[], []];          // collected, not yet used (per team)
@@ -426,19 +447,16 @@
       if (this.touches[b.team] > C.MAX_TOUCHES) this.endRally(1 - b.team, 'fault');
     }
 
-    /* Ranged weapon: fires a bolt toward the ball (auto-aim with a little lead). The bolt flies over the net. */
+    /* Ranged weapon: fires projectiles in the direction of shotAngle() (no auto-aim) – over the net if the angle is right. */
     fire(b) {
-      const ball = this.ball;
-      let tx = ball.x, ty = ball.y;
-      for (let i = 0; i < 2; i++) {                              // aim at where the ball will be when the bolt arrives
-        const t = Math.hypot(tx - b.x, ty - b.y) / C.SHOT_V;
-        tx = ball.x + ball.vx * t; ty = ball.y + ball.vy * t + 0.5 * C.BALL_G * t * t;
+      const W = RANGED[weaponOf(b.style)], a0 = shotAngle(b);
+      b.aim = a0; b.swing = 10; b.cd = W.cd;
+      this.volley = (this.volley || 0) + 1;
+      for (let i = 0; i < W.n; i++) {
+        const a = a0 + (i - (W.n - 1) / 2) * W.spread;
+        this.shots.push({ x: b.x + Math.cos(a0) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a0) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life, k: W.n > 1 ? 0 : 1, vol: this.volley });
       }
-      tx = clamp(tx, 0, C.W); ty = clamp(ty, 0, C.GROUND);
-      const a = Math.atan2(ty - b.y, tx - b.x);
-      b.aim = a; b.swing = 10; b.cd = C.SHOT_CD;
-      this.shots.push({ x: b.x + Math.cos(a) * (C.BLOB_R + 6), y: b.y - 4 + Math.sin(a) * (C.BLOB_R + 6), vx: Math.cos(a) * C.SHOT_V, vy: Math.sin(a) * C.SHOT_V, team: b.team, life: 90 });
-      this.emit('shot', { blob: b.id });
+      this.emit('shot', { blob: b.id, heavy: W.n > 1 });
     }
     /* Bolts: a hit on a ball flying toward the opponents speeds it up, on a ball flying toward the shooter's own side it slows it down. */
     stepShots() {
@@ -447,7 +465,8 @@
         const s = this.shots[i];
         s.x += s.vx; s.y += s.vy;
         let dead = --s.life <= 0 || s.x < -20 || s.x > C.W + 20 || s.y < -20 || s.y > C.GROUND + 10 || this.state === 'over';
-        if (!dead && this.state === 'play' && Math.hypot(ball.x - s.x, ball.y - s.y) < C.BALL_R + C.SHOT_R) {
+        if (!dead && this.state === 'play' && s.vol !== this.ballVol && Math.hypot(ball.x - s.x, ball.y - s.y) < C.BALL_R + C.SHOT_R) {
+          this.ballVol = s.vol;                       // one effect per volley, even if several pellets hit
           const toOpp = s.team === 0 ? 1 : -1;
           const sp = Math.hypot(ball.vx, ball.vy);
           let boost;
@@ -459,7 +478,7 @@
             if (boost) { const n = Math.hypot(ball.vx, ball.vy); if (n > 18) { ball.vx *= 18 / n; ball.vy *= 18 / n; } }
           }
           this.emit('shotHit', { boost, x: ball.x, y: ball.y });
-          dead = true;
+          dead = s.k === 1;                            // a bullet is used up; pellets fly on
         }
         if (dead) this.shots.splice(i, 1);
       }
@@ -570,7 +589,7 @@
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, kindOf, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

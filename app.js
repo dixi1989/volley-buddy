@@ -44,8 +44,8 @@
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
-  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'ninja' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'adventurer' } }, store.get('vb_looks', {}));
-  ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = k === 'p1' ? 'ninja' : 'adventurer'; });
+  const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'ninja' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'cowboy' } }, store.get('vb_looks', {}));
+  ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = k === 'p1' ? 'ninja' : 'cowboy'; });
   /* name / figure / colour picker used by the setup screen and the online lobby */
   const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
@@ -355,7 +355,10 @@
   function playEvent(e) {
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
-      case 'shot': tone(1500, 0.14, 'square', 0.07, -1100); tone(300, 0.1, 'sawtooth', 0.05, -120, 0.02); break;
+      case 'shot':
+        if (e.heavy) { tone(110, 0.22, 'sawtooth', 0.2, -80); tone(700, 0.12, 'square', 0.08, -600); tone(70, 0.3, 'triangle', 0.16, -30, 0.05); }
+        else { tone(1800, 0.09, 'square', 0.09, -1400); tone(260, 0.1, 'sawtooth', 0.06, -150, 0.02); }
+        break;
       case 'shotHit': if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
       case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
       case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;

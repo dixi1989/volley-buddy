@@ -47,7 +47,7 @@
 
   function drawPerson(ctx, b, ball, t) {
     const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f', v = b.style;
-    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'robot';
+    const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'cyborg', cow = v === 'cowboy';
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
@@ -106,15 +106,15 @@
       part(12, -24 + cy, 4, 4, col, true); part(16, -22 + cy + w, 6, 4, col, true); part(20, -20 + cy + w * 2, 6, 4, dark, true);
       if (fem) { part(-18, -22 + cy, 6, 4, col, true); part(-18, -18 + cy, 4, 12, NH, true); }
     } else if (robot) {
-      // metal head: dark visor with glowing LED eyes that follow the ball, antenna, mouth grille
-      part(-12, -26 + cy, 24, 4, '#d4dbe8', false);
+      // cyborg: dark steel skull with glowing red eyes that follow the ball, exposed jaw, scar plate; chest plate with a red core
+      part(-12, -26 + cy, 24, 4, '#d4dbe8', false); part(-12, -6 + cy, 24, 4, '#5d6779', false);
       part(-10, -18 + cy, 20, 8, '#10151f', true);
-      [-8, 2].forEach(x => { part(x + (ox - 1) * 2, -16 + cy + (oy ? 1 : 0), 6, 4, '#4cf0ff', false); part(x + (ox - 1) * 2 + 2, -16 + cy, 2, 2, '#e6ffff', false); });
-      part(-6, -6 + cy, 12, 2, '#4a5468', false); part(-4, -6 + cy, 2, 2, '#aab6c8', false); part(0, -6 + cy, 2, 2, '#aab6c8', false);
-      part(-2, -34 + cy, 4, 8, METAL[1], true); part(-4, -38 + cy, 8, 4, '#ff3b5c', true);
-      part(-14, -16 + cy, 2, 8, METAL[1], false); part(12, -16 + cy, 2, 8, METAL[1], false);            // ear bolts
-      if (fem) { part(-12, -30 + cy, 8, 6, col, true); part(-10, -28 + cy, 4, 2, light, false); }
-      part(-8, 2 + cy, 16, 2, METAL[1], false); part(-8, 6 + cy, 2, 2, '#4cf0ff', false); part(6, 6 + cy, 2, 2, '#ff3b5c', false);   // chest panel
+      [-8, 2].forEach(x => { part(x + (ox - 1) * 2, -16 + cy + (oy ? 1 : 0), 6, 4, '#ff2a2a', false); part(x + (ox - 1) * 2 + 2, -16 + cy, 2, 2, '#ffd0d0', false); });
+      part(-8, -6 + cy, 16, 2, '#10151f', false); [-6, -2, 2, 6].forEach(x => part(x, -6 + cy, 2, 2, '#aab6c8', false));
+      part(4, -26 + cy, 8, 4, '#3a4252', false); part(6, -22 + cy, 2, 6, '#3a4252', false);            // damaged plate
+      part(-14, -16 + cy, 2, 8, METAL[1], false); part(12, -16 + cy, 2, 8, METAL[1], false);
+      if (fem) { part(-14, -22 + cy, 4, 4, METAL[1], true); part(-18, -18 + cy, 4, 16, '#3a4252', true); part(-18, -4 + cy, 4, 4, col, true); }   // cable ponytail
+      part(-8, 2 + cy, 16, 2, METAL[1], false); part(-2, 5 + cy, 4, 4, '#ff2a2a', false); part(-6, 6 + cy, 2, 2, '#aab6c8', false); part(4, 6 + cy, 2, 2, '#aab6c8', false);
     } else {
       // hair: short for him, long for her; Santa / Mrs. Claus have white hair under the hat
       const h0 = santa ? WH : hr[0], h1 = santa ? WH2 : hr[1];
@@ -173,11 +173,20 @@
       part(-12, -36 + cy, 24, 4, '#3a2412', false); part(-12, -42 + cy, 24, 2, '#a4733f', false); part(-2, -44 + cy, 4, 2, '#8b5e34', false);
       if (fem) { part(-18, -26 + cy, 6, 4, hr[0], true); part(-20, -22 + cy, 6, 14, hr[0], true); part(-20, -10 + cy, 6, 4, col, true); }   // braid
     }
+    // Cowboy: tan hat with upturned brim and red band, red neckerchief, sheriff star, spurs
+    if (cow) {
+      part(-12, -8 + cy, 24, 6, '#d7263d', false); part(-8, -2 + cy, 16, 4, '#d7263d', false); part(-4, 2 + cy, 8, 2, '#a01a2c', false);   // neckerchief
+      part(-8, 4 + cy, 6, 6, '#ffd23f', true); part(-6, 6 + cy, 2, 2, '#b8860b', false);                                                         // star
+      [-11, 1].forEach(x => part(x + 8, 28, 4, 2, '#ffd23f', false));                                                                              // spurs
+      part(-20, -32 + cy, 40, 6, '#c89a5a', true); part(-24, -36 + cy, 8, 6, '#c89a5a', true); part(16, -36 + cy, 8, 6, '#c89a5a', true);         // brim, curled up
+      part(-12, -46 + cy, 24, 14, '#d9ad6b', true); part(-4, -48 + cy, 8, 4, '#d9ad6b', true); part(-12, -38 + cy, 24, 4, '#a01a2c', false);   // crown + band
+      if (fem) { part(-18, -26 + cy, 6, 4, hr[0], true); part(-20, -22 + cy, 6, 14, hr[0], true); part(-20, -10 + cy, 6, 4, col, true); }
+    }
     ctx.fillStyle = OUT;
     ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
     fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
     // Alman Mode: bucket hat with little German flags (sits on top of whatever the figure wears)
-    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : adv ? -38 : robot ? -26 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
+    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : adv ? -38 : cow ? -46 : robot ? -26 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
     if (b.fight) drawWeapon(ctx, b, t, cy);
     ctx.restore();
   }
@@ -197,10 +206,14 @@
       px(ctx, 8, -3, 38, 3, '#a8763f'); px(ctx, 8, 0, 36, 3, '#7a4f2a');
       px(ctx, 40, -8, 10, 2, '#a8763f'); px(ctx, 44, -4, 12, 2, '#7a4f2a'); px(ctx, 44, 2, 12, 2, '#a8763f'); px(ctx, 40, 6, 10, 2, '#7a4f2a');
     },
-    blaster(ctx, t, ext) {  // ray gun
-      px(ctx, -6, -2, 8, 10, '#3d4658'); px(ctx, -6, -4, 18, 8, '#5b6578'); px(ctx, 12, -3, 14, 6, '#aeb8c8'); px(ctx, 12, -1, 14, 2, '#e6edf7');
-      px(ctx, 26, -4, 4, 8, '#4cf0ff'); px(ctx, 2, -6, 6, 2, '#ff3b5c');
-      if (ext > 0) { px(ctx, 30, -6, 8, 12, '#e6ffff'); px(ctx, 36, -3, 8, 6, '#4cf0ff'); }
+    shotgun(ctx, t, ext) {  // pump-action shotgun
+      px(ctx, -10, -3, 14, 8, '#6b3f1d'); px(ctx, -12, -2, 4, 10, '#4a2a12'); px(ctx, 4, -4, 28, 4, '#3d4658'); px(ctx, 4, 0, 28, 3, '#5b6578');
+      px(ctx, 12, 3, 10, 4, '#8a5a30'); px(ctx, 32, -4, 4, 6, '#aab6c8');
+      if (ext > 0) { px(ctx, 36, -8, 8, 14, '#fff3b0'); px(ctx, 44, -6, 8, 10, '#ff9a3c'); px(ctx, 40, -12, 4, 4, '#ffd23f'); }
+    },
+    revolver(ctx, t, ext) { // six-shooter
+      px(ctx, -6, -2, 8, 10, '#6b3f1d'); px(ctx, -6, -4, 14, 6, '#aab6c8'); px(ctx, 6, -4, 6, 8, '#8a93a6'); px(ctx, 12, -4, 14, 4, '#c8d0de'); px(ctx, 24, -6, 2, 2, '#e8eef6');
+      if (ext > 0) { px(ctx, 26, -6, 8, 10, '#fff3b0'); px(ctx, 34, -4, 6, 6, '#ff9a3c'); }
     },
     lasso(ctx, t, ext) {   // coiled rope with a spinning loop
       px(ctx, -6, -2, 14, 4, '#b98a4a');
@@ -218,7 +231,7 @@
   function drawWeapon(ctx, b, t, cy) {
     const dir = b.team === 0 ? 1 : -1, kind = VB.FIGURES[b.style].weapon, SW = C.WEAPON_SWING, ranged = VB.kindOf(b.style) === 'ranged';
     const p = b.swing > 0 ? 1 - b.swing / SW : -1;                      // swing progress 0..1, -1 = idle
-    const idle = ranged ? (dir === 1 ? -0.35 : Math.PI + 0.35) : (dir === 1 ? -1.15 : Math.PI + 1.15);
+    const idle = ranged ? VB.shotAngle(b) : (dir === 1 ? -1.15 : Math.PI + 1.15);   // a ranged weapon always shows its line of fire
     const ang = ranged ? (b.swing > 0 ? (b.aim || 0) : idle) : (p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir);
     ctx.save(); ctx.translate(dir * 14, 4 + cy);
     if (p >= 0 && !ranged) {                                                       // slash trail
@@ -231,26 +244,29 @@
     ctx.restore();
   }
 
-  /* Bolts of ranged weapons */
+  /* Projectiles of ranged weapons: shotgun pellets (k 0) and revolver bullets (k 1) */
   function drawShots(ctx, shots, t) {
     for (const s of shots) {
       const a = Math.atan2(s.vy, s.vx);
       ctx.save(); ctx.translate(Math.round(s.x), Math.round(s.y)); ctx.rotate(a);
-      ctx.fillStyle = 'rgba(76,240,255,0.25)'; ctx.fillRect(-34, -3, 30, 6);
-      ctx.fillStyle = 'rgba(76,240,255,0.5)'; ctx.fillRect(-20, -2, 18, 4);
-      ctx.fillStyle = '#4cf0ff'; ctx.fillRect(-6, -4, 14, 8);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(-2, -2, 10, 4);
+      if (s.k === 1) {
+        ctx.fillStyle = 'rgba(255,214,90,0.3)'; ctx.fillRect(-30, -2, 26, 4);
+        ctx.fillStyle = '#ffd23f'; ctx.fillRect(-6, -3, 12, 6); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, -2, 8, 4);
+      } else {
+        ctx.fillStyle = 'rgba(255,154,60,0.35)'; ctx.fillRect(-14, -2, 12, 4);
+        ctx.fillStyle = '#ff9a3c'; ctx.fillRect(-4, -4, 8, 8); ctx.fillStyle = '#fff3b0'; ctx.fillRect(-2, -2, 4, 4);
+      }
       ctx.restore();
     }
   }
 
   function drawLabel(ctx, b) {
     ctx.font = '700 12px "Jersey 10", system-ui, sans-serif'; ctx.textAlign = 'center';
-    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0) - (b.style === 'santa' ? 12 : 0);   // sit above the hat
+    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0) - (b.style === 'santa' || b.style === 'cowboy' ? 12 : 0);   // sit above the hat
     ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.strokeText(b.label, b.x, ly, 96);
     ctx.fillStyle = 'rgba(30,12,60,.95)'; ctx.fillText(b.label, b.x, ly, 96);
     if (b.fight && b.cd > 0) {                                           // weapon recharge bar
-      const w = 34, f = 1 - b.cd / (VB.kindOf(b.style) === 'ranged' ? C.SHOT_CD : C.WEAPON_CD);
+      const w = 34, f = 1 - b.cd / VB.cdMax(b.style);
       ctx.fillStyle = 'rgba(30,12,60,.8)'; ctx.fillRect(b.x - w / 2 - 1, ly + 4, w + 2, 6);
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(b.x - w / 2, ly + 5, w * f, 4);
     }
