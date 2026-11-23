@@ -269,3 +269,13 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 
 /* v53: no on-screen touch buttons while a controller is connected */
 body.haspad #touch{display:none !important}
+
+/* v55: German changelog (triple click on the version in the main menu) */
+#menu .build{padding:6px 8px;cursor:default;user-select:none}
+#changelog .panel{max-width:560px;text-align:left}
+#changelog h2{text-align:center;font-size:26px;margin:0 0 4px}
+.clog{max-height:340px;overflow:auto;font-size:13px;line-height:1.25}
+.clog h3{margin:8px 0 2px;color:#ffe45e;font-size:17px}
+.clog ul{margin:0 0 4px 18px;padding:0}
+.clog li{margin:2px 0;color:#e6dcff}
+#changelog .row{justify-content:center}

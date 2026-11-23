@@ -60,7 +60,7 @@
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
   let online = null;            // online match state (see 'online play' below)
-  const MENU_PHASES = new Set(['menu', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto']);
+  const MENU_PHASES = new Set(['menu', 'changelog', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto']);
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
@@ -175,11 +175,12 @@
     $('powerups').hidden = p !== 'powerups';
     $('controls').hidden = p !== 'controls';
     $('howto').hidden = p !== 'howto';
+    $('changelog').hidden = p !== 'changelog';
     $('pause').hidden = p !== 'pause';
     $('over').hidden = p !== 'over';
     // keyboard navigation: focus the first button of the end-of-match / pause dialog
     if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
-    const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), stage: () => document.querySelector('#stageTiles .sel') || document.querySelector('#stageTiles button'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
+    const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), stage: () => document.querySelector('#stageTiles .sel') || document.querySelector('#stageTiles button'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack'), changelog: () => $('btnChangelogBack') }[p];
     if (focusFirst) { const e = focusFirst(); if (e) e.focus(); }
     $('touch').hidden = !(touchMode && p === 'play');
     if (p === 'play') { const tl = document.querySelector('#touch [data-k="TouchSpecial"] small'); if (tl) tl.textContent = game && game.fight ? 'WEAPON' : 'POWER-UP'; }
@@ -197,13 +198,13 @@
   function uiBack() {
     if (phase === 'stage') setPhase('setup');
     else if (phase === 'setup') setPhase(setupMode === 'throne' ? 'menu' : 'mode');
-    else if (phase === 'mode' || phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto') setPhase('menu');
+    else if (phase === 'mode' || phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto' || phase === 'changelog') setPhase('menu');
     else if (phase === 'online') { lobbyBusy(false); leaveOnline(); setPhase('menu'); }
     else if (phase === 'play') openPause();
     else if (phase === 'pause') setPhase('play');
   }
   /* Moves the focus to the nearest control in that direction (all menus, dialogs, the hero select). */
-  const NAV_PHASES = new Set(['menu', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
+  const NAV_PHASES = new Set(['menu', 'changelog', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
   function navFocus(code) {
     const scope = document.querySelector('.overlay:not([hidden])');
     if (!scope) return;
@@ -766,6 +767,20 @@
   $('btnMusic').onclick = toggleMusic;
   $('btnMusic').textContent = musicLabel();
   if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version;
+  /* Dreifachklick auf die Version öffnet das deutsche Änderungsprotokoll (letzte 3 Versionen, siehe version.js) */
+  let verClicks = [];
+  $('buildInfo').addEventListener('click', () => {
+    const now = performance.now(); verClicks = verClicks.filter(t => now - t < 700); verClicks.push(now);
+    if (verClicks.length < 3) return;
+    verClicks = [];
+    const log = (window.BUILD && BUILD.log) || [], body = $('changelogBody'); body.textContent = '';
+    log.slice(0, 3).forEach(e => {
+      const h = document.createElement('h3'); h.textContent = e.v + (e.v === BUILD.version ? ' (aktuell)' : ''); body.appendChild(h);
+      const ul = document.createElement('ul'); e.items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); body.appendChild(ul);
+    });
+    setPhase('changelog');
+  });
+  $('btnChangelogBack').onclick = () => setPhase('menu');
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
     const btn = $('btnScoresClear');
