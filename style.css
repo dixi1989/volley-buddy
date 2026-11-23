@@ -238,3 +238,6 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 /* v42: a bit more room between the Volley Throne button and the menu buttons below */
 #menu .modes{margin-bottom:18px}
 #menu .row{margin-top:14px}
+/* v43: version info small in the top right corner of the main menu */
+#menu .panel{position:relative}
+#menu .build{position:absolute;top:8px;right:14px;margin:0;font-size:9px;letter-spacing:.5px;opacity:.55}

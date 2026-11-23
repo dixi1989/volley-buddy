@@ -681,7 +681,7 @@
   function toggleMusic() { settings.music = !settings.music; saveSettings(); musicGain(); startMusic(); $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off'); }
   $('btnMusic').onclick = toggleMusic;
   $('btnMusic').textContent = '🎵 Music: ' + (settings.music ? 'On' : 'Off');
-  if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version + ' · ' + BUILD.time;
+  if (window.BUILD && $('buildInfo')) $('buildInfo').textContent = 'Version ' + BUILD.version;
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
     const btn = $('btnScoresClear');
