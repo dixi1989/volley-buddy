@@ -266,3 +266,6 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 .stages{gap:8px;margin:6px 0}
 .stages button{padding:6px 5px}
 .stages button b{font-size:15px}
+
+/* v53: no on-screen touch buttons while a controller is connected */
+body.haspad #touch{display:none !important}
