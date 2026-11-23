@@ -65,7 +65,7 @@
     /* effect: 'speed' (default: faster / slower ball), 'deflect' (the ball is bent toward the shot's direction), 'hole' (the ball vanishes
      * and drops from the sky on the opponents' side). k = look of the projectile (0 pellet, 1 bullet, 2 pickle slice, 3 lightning, 4 black hole).
      * ring: fires n shots in all directions at once on a key press (no aiming). */
-    pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 40, k: 2, r: 13, effect: 'deflect' },          // McRib: gherkin slices
+    pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 90, k: 2, r: 13, effect: 'deflect' },          // McRib: gherkin slices
     bolt:     { n: 8, spread: 0,    v: 11, life: 34, cd: 84, k: 3, effect: 'deflect', ring: true },   // Cloudy: lightning in every direction
     hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' }            // Gagari: black hole cannon
   };

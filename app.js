@@ -76,7 +76,7 @@
     rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
     shotgun: ['Shotgun', '3 pellets, short range, slow reload.'],
     revolver: ['Revolver', '1 bullet, fires again quickly.'],
-    pickle: ['Gherkin cannon', 'Shoots gherkin slices that bend the ball into their direction.'],
+    pickle: ['Gherkin cannon', 'Shoots gherkin slices that bend the ball into their direction. Slow to reload.'],
     kick: ['Kick', 'Kicks the ball from below: it flies up and forward. Medium reach.'],
     bolt: ['Thunder', 'Lightning bolts fly in all directions at once and bend the ball. No aiming – just press the key.'],
     hole: ['Black hole cannon', 'A hit swallows the ball: it drops from the sky at a random spot on the opponents\' side. Slow recharge.'],
