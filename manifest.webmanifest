@@ -1,6 +1,6 @@
 {
-  "name": "Beach Volley Buddy",
-  "short_name": "Volley Buddy",
+  "name": "Beach Volley Hero",
+  "short_name": "Volley Hero",
   "description": "Beach volleyball with jelly bears: 1v1, 2v2 and vs CPU, with power-ups",
   "lang": "en",
   "start_url": "./index.html",

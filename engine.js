@@ -1,4 +1,4 @@
-/* Beach Volley Buddy – game engine (no DOM, so it can be tested headless).
+/* Beach Volley Hero – game engine (no DOM, so it can be tested headless).
  * Physics, rules (serve scoring, max. 3 touches), power-ups and AI.
  * Units: pixels and frames at 60 Hz.
  */
@@ -29,6 +29,15 @@
     aura: { name: 'Aura+10' }
   };
   const TYPES = Object.keys(POWERUPS);
+
+  /* Figures a player can pick (looks only, same hit box). `weapon` is reserved for a later feature:
+   * a per-figure ability that can act on the ball. */
+  const FIGURES = {
+    gummy: { name: 'Gummy Bear', weapon: null },
+    pixel: { name: 'Pixel Hero', weapon: null },
+    ninja: { name: 'Ninja', weapon: null },
+    santa: { name: 'Santa', nameF: 'Mrs. Claus', weapon: null }
+  };
 
   const LEVELS = {
     easy:   { delay: 14, err: 46, move: 0.72, jump: 0.55, grab: 0.25, use: 0.010, mult: 1.0 },
@@ -90,7 +99,7 @@
       this.controller = controller; // 'human' | 'ai'
       this.color = color; this.label = label;
       this.gender = gender === 'f' ? 'f' : 'm';   // looks only: swim trunks or bikini
-      this.style = style === 'pixel' ? 'pixel' : 'gummy';   // looks only: gummy bear or pixel person
+      this.style = FIGURES[style] ? style : 'gummy';   // looks only: see FIGURES
       this.aura = false;
       this.x = homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = 0; this.vy = 0;
@@ -457,7 +466,7 @@
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, LEVELS, POWERUPS, FIGURES, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

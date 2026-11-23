@@ -1,4 +1,4 @@
-/* Beach Volley Buddy – online play (1 vs 1).
+/* Beach Volley Hero – online play (1 vs 1).
  * Host-authoritative: the host runs the Sim, the guest only sends its keys and renders the snapshots it receives.
  * Transport: WebRTC data channel via PeerJS (peer-to-peer, no own server; PeerJS cloud is only the matchmaker).
  * snapshot()/applySnapshot() are plain functions so they can be tested in Node without a browser.

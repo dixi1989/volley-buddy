@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Beach Volley Buddy</title>
+<title>Beach Volley Hero</title>
 <meta name="theme-color" content="#2b1068">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -17,13 +17,12 @@
   <!-- Main menu -->
   <div id="menu" class="overlay">
     <div class="panel">
-      <h1><img src="icons/logo.svg" alt="Beach Volley Buddy" width="640" height="250"></h1>
-      <p class="sub">Beach volleyball with jelly bears · serve scoring · max. 3 touches</p>
+      <h1><img src="icons/logo.svg" alt="Beach Volley Hero" width="640" height="250"></h1>
       <div class="modes">
-        <button data-mode="duel"><b>1 : 1</b><small>Two players, one keyboard</small></button>
-        <button data-mode="team"><b>2 : 2</b><small>Team up against 2 CPU opponents</small></button>
-        <button data-mode="solo"><b>1 : 1 vs CPU</b><small>You against the computer</small></button>
-        <button id="btnOnline"><b>🌐 Online</b><small>1 : 1 against a friend over the internet</small></button>
+        <button data-mode="duel"><span class="mi">🥊</span><b>1 : 1</b><small>Local duel</small></button>
+        <button data-mode="team"><span class="mi">🤝</span><b>2 : 2</b><small>Team vs CPU</small></button>
+        <button data-mode="solo"><span class="mi">🤖</span><b>1 vs CPU</b><small>Play solo</small></button>
+        <button id="btnOnline"><span class="mi">🌐</span><b>Online</b><small>Play a friend</small></button>
       </div>
       <div class="opts">
         <label>CPU level
@@ -46,30 +45,26 @@
     </div>
   </div>
 
-  <!-- Player names -->
+  <!-- Player names / hero select -->
   <div id="setup" class="overlay" hidden>
-    <div class="panel small-panel">
-      <h2 id="setupTitle">Who is playing?</h2>
-      <div class="fields">
-        <div id="row1" class="prow">
-          <canvas class="prev" id="prev1" width="44" height="44"></canvas>
-          <div class="pcol">
-            <label><span class="t"><b id="lbl1">Player 1</b> <small id="hint1"></small></span>
-              <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-            <div class="look" id="look1"></div>
-          </div>
+    <div class="panel" id="setupPanel">
+      <h2 id="setupTitle">Choose your hero</h2>
+      <div class="fields cols" id="setupFields">
+        <div id="row1" class="pcard c1">
+          <div class="pbanner"><b id="lbl1">Player 1</b><small id="hint1"></small></div>
+          <div class="pname"><canvas class="prev" id="prev1" width="36" height="36"></canvas>
+            <input id="name1" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></div>
+          <div class="look" id="look1"></div>
         </div>
-        <div id="row2" class="prow">
-          <canvas class="prev" id="prev2" width="44" height="44"></canvas>
-          <div class="pcol">
-            <label><span class="t"><b id="lbl2">Player 2</b> <small id="hint2"></small></span>
-              <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-            <div class="look" id="look2"></div>
-          </div>
+        <div id="row2" class="pcard c2">
+          <div class="pbanner"><b id="lbl2">Player 2</b><small id="hint2"></small></div>
+          <div class="pname"><canvas class="prev" id="prev2" width="36" height="36"></canvas>
+            <input id="name2" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></div>
+          <div class="look" id="look2"></div>
         </div>
       </div>
       <div class="row">
-        <button id="btnStart">Start</button>
+        <button id="btnStart">Fight!</button>
         <button id="btnSetupBack" class="ghost">Back</button>
       </div>
     </div>
@@ -79,20 +74,18 @@
   <div id="online" class="overlay" hidden>
     <div class="panel small-panel">
       <h2>🌐 Online 1 : 1</h2>
-      <p class="sub">Create a room and send the code to a friend – or enter a friend's code.</p>
-      <div class="fields" id="onFields">
-        <div class="prow">
-          <canvas class="prev" id="prevOn" width="44" height="44"></canvas>
-          <div class="pcol">
-            <label><span class="t"><b>Your name</b> <small>A D · W · Ctrl (or arrow keys)</small></span>
-              <input id="onName" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></label>
-            <div class="look" id="onLook"></div>
-          </div>
+      <p class="sub">Create a room and share the code – or enter a friend's code.</p>
+      <div class="fields single" id="onFields">
+        <div class="pcard c1">
+          <div class="pbanner"><b>You</b><small>A D · W · Ctrl (or arrow keys)</small></div>
+          <div class="pname"><canvas class="prev" id="prevOn" width="36" height="36"></canvas>
+            <input id="onName" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Name"></div>
+          <div class="look" id="onLook"></div>
         </div>
       </div>
       <div id="onChoose">
-        <div class="row"><button id="btnCreate">Create room</button></div>
         <div class="row">
+          <button id="btnCreate">Create room</button>
           <input id="onCodeIn" class="codein" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE">
           <button id="btnJoin">Join</button>
         </div>
@@ -140,7 +133,7 @@
         <div><b>1 vs CPU</b> WASD <i>or</i> arrow keys</div>
         <div><b>📱 Phone / tablet</b> on-screen buttons while you play: <kbd>◀</kbd><kbd>▶</kbd> move · <kbd>▲</kbd> jump · <kbd>⚡</kbd> use power-up · <kbd>⏸</kbd> menu. They always control Player 1 – hold the phone sideways.</div>
         <div class="small"><kbd>Shift</kbd> works instead of Ctrl (Ctrl+W closes the browser tab!).</div>
-        <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pick a mode in the menu</div>
+        <div class="small"><kbd>P</kbd> / <kbd>Esc</kbd> pause · <kbd>M</kbd> all sound · <kbd>N</kbd> music · <kbd>F</kbd> fullscreen · <kbd>1</kbd>–<kbd>4</kbd> pick a mode · arrow keys + Enter move through all menus</div>
       </div>
       <div class="row"><button id="btnControlsBack">Back</button></div>
     </div>

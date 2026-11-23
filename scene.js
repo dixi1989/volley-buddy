@@ -1,4 +1,4 @@
-/* Beach Volley Buddy – Scene: lively beach background, gummy-bear characters and power-up visuals (rendering only) */
+/* Beach Volley Hero – Scene: lively beach background, gummy-bear characters and power-up visuals (rendering only) */
 (function (root) {
   'use strict';
   const C = VB.C, TAU = Math.PI * 2;
@@ -204,14 +204,19 @@
   }
 
 
-  /* ------------------------------------------------------ Pixel person */
-  /* Blocky pixel figure on a 2 px grid (so it stays crisp in the low-res pixel renderer). The bear colour is the swimwear colour. */
+  /* ------------------------------------------------------ Pixel people */
+  /* Blocky pixel figures on a 2 px grid (so they stay crisp in the low-res pixel renderer): the Pixel Hero, a Ninja and Santa / Mrs. Claus.
+   * The player's colour is always the swimwear. All of them share the body; the variants differ in head gear, face and extras. */
   const OUT = '#2a1740';
   const SKIN = { m: ['#d99a63', '#b57545'], f: ['#f1bf98', '#d4946b'] };
   const HAIR = { m: ['#4a2d18', '#2e1a0d'], f: ['#e6b035', '#b8821c'] };
+  const NH = '#232b4a', NH2 = '#151a30';          // ninja cloth
+  const WH = '#f6f6fa', WH2 = '#cfcfdd';          // santa beard / hair
+  const RED = '#d7263d', RED2 = '#a01a2c';
 
   function drawPerson(ctx, b, ball, t) {
-    const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f';
+    const R = C.BLOB_R, j = jstate(b), fem = b.gender === 'f', v = b.style;
+    const ninja = v === 'ninja', santa = v === 'santa';
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
@@ -237,37 +242,68 @@
     [[-11, 0], [1, 1]].forEach(([x, s]) => {
       const h = 14 - cy - lift(s);
       part(x, 16 + cy, 10, h, sk[0], true); part(x + 8, 16 + cy, 2, h, sk[1]);
+      if (ninja) { part(x, 30 - lift(s) - 6, 10, 6, NH, false); part(x, 30 - lift(s) - 8, 10, 2, col, false); }   // boots with a coloured wrap
     });
-    // torso
-    part(-12, -2 + cy, 24, 18, sk[0], true); part(10, -2 + cy, 2, 18, sk[1]);
-    // arms (raised when jumping, swinging when running)
-    [[-20, 0], [12, 1]].forEach(([x, s]) => {
-      const off = air ? -14 : (moving ? ((s + ph) % 2 ? 2 : -2) : 0);
-      part(x, -2 + cy + off, 8, 18, sk[0], true); part(x + (s ? 6 : 0), -2 + cy + off, 2, 18, sk[1]);
+    // torso (Santa gets a belly, the ninja pecs and abs)
+    if (santa && !fem) { part(-14, 0 + cy, 28, 16, sk[0], true); part(12, 0 + cy, 2, 16, sk[1]); }
+    else { part(-12, -2 + cy, 24, 18, sk[0], true); part(10, -2 + cy, 2, 18, sk[1]); }
+    if (ninja) {
+      part(0, 0 + cy, 2, 8, sk[1]);
+      if (!fem) { part(-10, 0 + cy, 8, 2, sk[1]); part(2, 0 + cy, 8, 2, sk[1]); part(-6, 4 + cy, 12, 2, sk[1]); }
+    }
+    // arms (raised when jumping, swinging when running); the ninja has stronger ones with gloves and wristbands
+    const aw = ninja ? 10 : 8;
+    [[ninja ? -22 : -20, 0], [12, 1]].forEach(([x, s]) => {
+      const off = air ? -14 : (moving ? ((s + ph) % 2 ? 2 : -2) : 0), y = -2 + cy + off;
+      part(x, y, aw, 18, sk[0], true); part(x + (s ? aw - 2 : 0), y, 2, 18, sk[1]);
+      if (ninja) { part(x, y + 10, aw, 8, NH, false); part(x, y + 8, aw, 2, col, false); }
     });
     // head
     part(-12, -26 + cy, 24, 24, sk[0], true); part(10, -26 + cy, 2, 24, sk[1]); part(-12, -4 + cy, 24, 2, sk[1]);
-    // hair: short for him, long with a bow for her
-    part(-12, -26 + cy, 24, 8, hr[0], false); part(-8, -20 + cy, 16, 2, hr[0], false);
-    part(-12, -18 + cy, 4, fem ? 22 : 6, hr[0], false); part(8, -18 + cy, 4, fem ? 22 : 6, hr[0], false);
-    part(-12, -22 + cy, 24, 2, hr[1], false);
-    if (fem) { part(-12, -30 + cy, 8, 6, col, true); part(-10, -28 + cy, 4, 2, light, false); }
-    // face: eyes follow the ball
     const dx = ball.x - b.x, dy = ball.y - b.y;
     const ox = dx > 10 ? 2 : (dx < -10 ? 0 : 1), oy = dy < -30 ? 0 : 2;
-    [-8, 4].forEach(x => { part(x, -16 + cy, 4, 6, '#fff', false); part(x + ox, -16 + cy + oy, 2, 4, '#1b2230', false); });
-    if (!fem) { part(-8, -18 + cy, 4, 2, hr[1], false); part(4, -18 + cy, 4, 2, hr[1], false); }
-    else { part(-10, -8 + cy, 4, 2, '#f08a9a', false); part(6, -8 + cy, 4, 2, '#f08a9a', false); }
-    part(-2, -10 + cy, 4, 2, sk[1], false); part(-4, -6 + cy, 8, 2, '#8a3a3a', false);
+    if (ninja) {
+      // black hood with a face slit, headband with flying tails (and a ponytail for her)
+      part(-12, -26 + cy, 24, 24, NH, false); part(-12, -6 + cy, 24, 2, NH2, false); part(10, -26 + cy, 2, 24, NH2, false);
+      part(-10, -18 + cy, 20, 8, sk[0], false); part(-10, -12 + cy, 20, 2, sk[1], false);
+      [-8, 4].forEach(x => { part(x, -16 + cy, 4, 6, '#fff', false); part(x + ox, -16 + cy + oy, 2, 4, '#1b2230', false); });
+      part(-10, -18 + cy, 6, 2, '#0e1122', false); part(-4, -16 + cy, 2, 2, '#0e1122', false);       // fierce brows
+      part(4, -18 + cy, 6, 2, '#0e1122', false); part(2, -16 + cy, 2, 2, '#0e1122', false);
+      part(-4, -6 + cy, 8, 2, NH2, false);
+      part(-12, -24 + cy, 24, 4, col, false); part(-4, -24 + cy, 8, 4, '#d8dde8', false); part(-2, -22 + cy, 4, 2, '#8a93a6', false);
+      const w = Math.floor(sin(t * 6 + b.id) * 1.5) * 2;
+      part(12, -24 + cy, 4, 4, col, true); part(16, -22 + cy + w, 6, 4, col, true); part(20, -20 + cy + w * 2, 6, 4, dark, true);
+      if (fem) { part(-18, -22 + cy, 6, 4, col, true); part(-18, -18 + cy, 4, 12, NH, true); }
+    } else {
+      // hair: short for him, long for her; Santa / Mrs. Claus have white hair under the hat
+      const h0 = santa ? WH : hr[0], h1 = santa ? WH2 : hr[1];
+      part(-12, -26 + cy, 24, 8, h0, false); part(-8, -20 + cy, 16, 2, h0, false);
+      part(-12, -18 + cy, 4, fem ? 22 : 6, h0, false); part(8, -18 + cy, 4, fem ? 22 : 6, h0, false);
+      part(-12, -22 + cy, 24, 2, h1, false);
+      if (fem && !santa) { part(-12, -30 + cy, 8, 6, col, true); part(-10, -28 + cy, 4, 2, light, false); }   // bow in her colour
+      // face: eyes follow the ball
+      [-8, 4].forEach(x => { part(x, -16 + cy, 4, 6, '#fff', false); part(x + ox, -16 + cy + oy, 2, 4, '#1b2230', false); });
+      if (!fem) { part(-8, -18 + cy, 4, 2, santa ? WH : hr[1], false); part(4, -18 + cy, 4, 2, santa ? WH : hr[1], false); }
+      else { part(-10, -8 + cy, 4, 2, '#f08a9a', false); part(6, -8 + cy, 4, 2, '#f08a9a', false); }
+      if (santa && !fem) { part(-10, -8 + cy, 4, 2, '#f08a9a', false); part(6, -8 + cy, 4, 2, '#f08a9a', false); }
+      part(-2, -10 + cy, 4, 2, santa && !fem ? '#e0766a' : sk[1], false); part(-4, -6 + cy, 8, 2, '#8a3a3a', false);
+      if (santa && fem) { part(-10, -17 + cy, 8, 7, '#bfe3f7', true); part(2, -17 + cy, 8, 7, '#bfe3f7', true); part(-2, -15 + cy, 4, 2, '#4a3a2a', false); }   // round glasses
+    }
     // swimwear in the player's colour
     if (!fem) {
       part(-12, 8 + cy, 24, 2, dark, false); part(-12, 10 + cy, 24, 6, col, false); part(-12, 12 + cy, 24, 2, light, false);
       [-11, 1].forEach(x => { part(x, 16 + cy, 10, 6, col, false); part(x, 20 + cy, 10, 2, dark, false); });
+      if (santa) { part(-14, 8 + cy, 28, 2, dark, false); part(-14, 10 + cy, 28, 4, col, false); }
     } else {
       part(-10, 2 + cy, 8, 6, col, false); part(2, 2 + cy, 8, 6, col, false); part(-10, 2 + cy, 2, 2, light, false); part(2, 2 + cy, 2, 2, light, false);
       part(-8, -2 + cy, 2, 4, col, false); part(6, -2 + cy, 2, 4, col, false); part(-2, 4 + cy, 4, 2, dark, false);
       part(-10, 10 + cy, 20, 2, col, false); part(-8, 12 + cy, 16, 2, col, false); part(-6, 14 + cy, 12, 2, col, false);
       part(-12, 10 + cy, 2, 2, col, false); part(10, 10 + cy, 2, 2, col, false); part(-10, 10 + cy, 2, 2, light, false);
+    }
+    // Santa's beard
+    if (santa && !fem) {
+      part(-12, -10 + cy, 24, 12, WH, true); part(-12, 0 + cy, 24, 2, WH2, false); part(-6, 2 + cy, 12, 2, WH2, true);
+      part(-10, -10 + cy, 20, 2, WH, false); part(-2, -12 + cy, 4, 4, '#e0766a', false); part(-2, -4 + cy, 4, 2, '#b5453a', false);
     }
     // Alman Mode: white socks in sandals
     if (b.alman) {
@@ -282,23 +318,28 @@
       part(-8, -16 + cy, 3, 2, '#7da2e6', false); part(3, -16 + cy, 3, 2, '#7da2e6', false);
       part(-12, -16 + cy, 2, 2, '#10151f', false); part(10, -16 + cy, 2, 2, '#10151f', false);
     }
+    // Santa hat: white brim, red body drooping to the right, white pom-pom
+    if (santa) {
+      part(-14, -28 + cy, 28, 6, WH, true); part(-12, -34 + cy, 24, 6, RED, true); part(-10, -38 + cy, 18, 4, RED, true);
+      part(6, -40 + cy, 12, 4, RED, true); part(14, -38 + cy, 8, 6, WH, true); part(-12, -30 + cy, 24, 2, RED2, false);
+    }
     ctx.fillStyle = OUT;
     ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
     fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
-    // Alman Mode: bucket hat with little German flags
-    if (b.alman) { ctx.save(); ctx.translate(0, -22 + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
+    // Alman Mode: bucket hat with little German flags (sits on top of whatever the figure wears)
+    if (b.alman) { ctx.save(); ctx.translate(0, (santa ? -34 : ninja ? -24 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
     ctx.restore();
   }
 
   function drawLabel(ctx, b) {
     ctx.font = '700 12px "Jersey 10", system-ui, sans-serif'; ctx.textAlign = 'center';
-    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0);   // sit above the hat
+    const ly = b.y - C.BLOB_R - 9 - (b.alman ? 11 : 0) - (b.style === 'santa' ? 12 : 0);   // sit above the hat
     ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.strokeText(b.label, b.x, ly, 96);
     ctx.fillStyle = 'rgba(30,12,60,.95)'; ctx.fillText(b.label, b.x, ly, 96);
   }
 
   function drawBlob(ctx, b, ball, t) {
-    if (b.style === 'pixel') { drawPerson(ctx, b, ball, t); return; }
+    if (b.style && b.style !== 'gummy') { drawPerson(ctx, b, ball, t); return; }
     drawGummy(ctx, b, ball, t);
   }
 

@@ -1,7 +1,7 @@
-/* Beach Volley Buddy – frontend: canvas rendering, input, menus, high scores, sound */
+/* Beach Volley Hero – frontend: canvas rendering, input, menus, high scores, sound */
 (function () {
   'use strict';
-  const { C, Sim, LEVELS } = VB;
+  const { C, Sim, LEVELS, FIGURES } = VB;
   const { Net } = VBNet;
   const $ = id => document.getElementById(id);
   const canvas = $('game'), mainCtx = canvas.getContext('2d');
@@ -45,34 +45,51 @@
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
   const looks = Object.assign({ p1: { color: PALETTE[7][1], gender: 'm', style: 'gummy' }, p2: { color: PALETTE[6][1], gender: 'm', style: 'gummy' } }, store.get('vb_looks', {}));
-  ['p1', 'p2'].forEach(k => { if (looks[k].style !== 'pixel') looks[k].style = 'gummy'; });
+  ['p1', 'p2'].forEach(k => { if (!FIGURES[looks[k].style]) looks[k].style = 'gummy'; });
   /* name / figure / colour picker used by the setup screen and the online lobby */
-  const FIGURES = [['gummy', '🧸 Gummy Bear'], ['pixel', '🧍 Pixel Hero']];
+  const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
+  const styleOf = v => (FIGURES[v] ? v : 'gummy');
+  function drawTile(c, spec) {
+    const x = c.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height);
+    x.setTransform(1 / PIX, 0, 0, 1 / PIX, c.width / 2, c.height / 2 - 364 / PIX);
+    Scene.preview(x, spec, 0);
+  }
   const previews = [{ c: $('prev1'), slot: 'p1' }, { c: $('prev2'), slot: 'p2' }, { c: $('prevOn'), slot: 'p1' }];
   function fillLook(box, slot, other, rerender) {
     const me = looks[slot], oth = other ? looks[other] : null;
+    // keep the keyboard focus on the same control after the picker is rebuilt
+    const redo = () => {
+      const k = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.k : null;
+      rerender();
+      if (k) { const e = document.querySelector('[data-k="' + k + '"]'); if (e) e.focus(); }
+    };
     box.innerHTML = '';
-    const r1 = document.createElement('div'); r1.className = 'lrow';
-    FIGURES.forEach(([id, label]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.style === id ? ' sel' : ''); b.textContent = label;
-      b.onclick = () => { me.style = id; store.set('vb_looks', looks); rerender(); };
-      r1.appendChild(b);
-    });
-    const gap = document.createElement('span'); gap.className = 'gap'; r1.appendChild(gap);
-    [['m', '♂'], ['f', '♀']].forEach(([g, label]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.textContent = label; b.title = g === 'm' ? 'Male' : 'Female';
-      b.onclick = () => { me.gender = g; store.set('vb_looks', looks); rerender(); };
-      r1.appendChild(b);
+    const tiles = document.createElement('div'); tiles.className = 'tiles';
+    Object.keys(FIGURES).forEach(id => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tile' + (me.style === id ? ' sel' : ''); b.dataset.k = box.id + ':f:' + id;
+      const cv = document.createElement('canvas'); cv.width = cv.height = 36;
+      drawTile(cv, { style: id, gender: me.gender, color: me.color });
+      const cap = document.createElement('span'); cap.textContent = figName(id, me.gender);
+      b.append(cv, cap);
+      b.onclick = () => { me.style = id; store.set('vb_looks', looks); redo(); };
+      tiles.appendChild(b);
     });
     const r2 = document.createElement('div'); r2.className = 'lrow';
-    PALETTE.forEach(([name, col]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (me.style === 'pixel' ? ' swimwear' : '');
-      if (me.color === col) b.classList.add('sel');
-      if (oth && oth.color === col) b.classList.add('taken');
-      b.onclick = () => { if (oth && oth.color === col) return; me.color = col; store.set('vb_looks', looks); rerender(); };
+    [['m', '♂'], ['f', '♀']].forEach(([g, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.textContent = label; b.title = g === 'm' ? 'Male' : 'Female'; b.dataset.k = box.id + ':g:' + g;
+      b.onclick = () => { me.gender = g; store.set('vb_looks', looks); redo(); };
       r2.appendChild(b);
     });
-    box.append(r1, r2);
+    const gap = document.createElement('span'); gap.className = 'gap'; r2.appendChild(gap);
+    PALETTE.forEach(([name, col]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = col; b.title = name + (me.style === 'gummy' ? '' : ' swimwear'); b.dataset.k = box.id + ':c:' + col;
+      if (me.color === col) b.classList.add('sel');
+      if (oth && oth.color === col) b.classList.add('taken');
+      b.onclick = () => { if (oth && oth.color === col) return; me.color = col; store.set('vb_looks', looks); redo(); };
+      r2.appendChild(b);
+    });
+    box.append(tiles, r2);
   }
   function renderLooks() {
     const two = setupMode !== 'solo';
@@ -85,8 +102,8 @@
     for (const p of previews) {
       if (!p.c.offsetParent) continue;
       const c = p.c.getContext('2d');
-      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 44, 44);
-      c.setTransform(1 / PIX, 0, 0, 1 / PIX, 22, 22 - (C.GROUND - C.BLOB_R - 2) / PIX);
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, p.c.width, p.c.height);
+      c.setTransform(1 / PIX, 0, 0, 1 / PIX, p.c.width / 2, p.c.height / 2 - 364 / PIX);
       Scene.preview(c, looks[p.slot], t);
     }
   }
@@ -104,15 +121,32 @@
     $('over').hidden = p !== 'over';
     // keyboard navigation: focus the first button of the end-of-match / pause dialog
     if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
+    const focusFirst = { menu: () => document.querySelector('#menu [data-mode]'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
+    if (focusFirst) { const e = focusFirst(); if (e) e.focus(); }
     $('touch').hidden = !(touchMode && p === 'play');
     if (p !== 'play') releaseTouchKeys();
   }
-  /* arrow keys move the focus between the buttons of the end-of-match / pause dialog (Enter or Space presses it) */
-  function moveDialogFocus(dir) {
-    const btns = [...document.querySelectorAll('#' + phase + ' button')].filter(b => !b.disabled);
-    if (!btns.length) return;
-    const i = btns.indexOf(document.activeElement);
-    btns[(i + dir + btns.length) % btns.length].focus();
+  /* Arrow keys move the focus to the nearest control in that direction (all menus, dialogs, the hero select); Enter / Space presses it. */
+  const NAV_PHASES = new Set(['menu', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
+  function navFocus(code) {
+    const scope = document.querySelector('.overlay:not([hidden])');
+    if (!scope) return;
+    const els = [...scope.querySelectorAll('button:not([disabled]), input, select')].filter(e => e.offsetParent !== null);
+    if (!els.length) return;
+    const cur = scope.contains(document.activeElement) ? document.activeElement : null;
+    if (!cur) { els[0].focus(); return; }
+    const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+    const horiz = code === 'ArrowLeft' || code === 'ArrowRight', sgn = (code === 'ArrowLeft' || code === 'ArrowUp') ? -1 : 1;
+    let best = null, bd = Infinity;
+    for (const e of els) {
+      if (e === cur) continue;
+      const r = e.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+      const main = (horiz ? dx : dy) * sgn, side = Math.abs(horiz ? dy : dx);
+      if (main < 4) continue;
+      const d = main + side * 2.5;
+      if (d < bd) { bd = d; best = e; }
+    }
+    if (best) best.focus();
   }
 
   /* -------------------------------------------------------------- layout */
@@ -340,6 +374,10 @@
 
   addEventListener('keydown', e => {
     audio(); startMusic();
+    if (/^Arrow/.test(e.code) && NAV_PHASES.has(phase)) {
+      const tag = e.target && e.target.tagName, horiz = e.code === 'ArrowLeft' || e.code === 'ArrowRight';
+      if (!(tag === 'INPUT' && horiz) && !(tag === 'SELECT' && !horiz)) { e.preventDefault(); if (!e.repeat) navFocus(e.code); return; }
+    }
     const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
     if (typing) {
       if (phase === 'setup' && e.key === 'Enter' && e.target.tagName === 'INPUT') beginMatch();
@@ -351,11 +389,6 @@
     if (phase === 'play' || phase === 'pause') {
       // swallow Ctrl+W/A/D etc. as far as the browser allows
       if (GAME_CODES.has(e.code) || e.ctrlKey) e.preventDefault();
-    }
-    if ((phase === 'over' || phase === 'pause') && /^Arrow/.test(e.code)) {
-      e.preventDefault();
-      if (!e.repeat) moveDialogFocus(e.code === 'ArrowLeft' || e.code === 'ArrowUp' ? -1 : 1);
-      return;
     }
     if (e.repeat) { keys.add(e.code); return; }
     keys.add(e.code);
@@ -373,6 +406,7 @@
       if (e.code === 'Digit1') openSetup('duel');
       if (e.code === 'Digit2') openSetup('team');
       if (e.code === 'Digit3') openSetup('solo');
+      if (e.code === 'Digit4') $('btnOnline').click();
     }
   });
   addEventListener('pointerdown', () => { audio(); startMusic(); });
@@ -402,8 +436,9 @@
     setupMode = mode;
     $('name1').value = names.p1; $('name2').value = names.p2;
     $('row2').hidden = mode === 'solo';
-    $('setupTitle').textContent = { duel: '1 vs 1 – who is playing?', team: '2 vs 2 – your team', solo: '1 vs CPU – who are you?' }[mode];
-    $('lbl1').textContent = mode === 'solo' ? 'Your name' : 'Player 1';
+    $('setupFields').classList.toggle('single', mode === 'solo'); $('setupPanel').classList.toggle('solo', mode === 'solo');
+    $('setupTitle').textContent = { duel: 'Choose your heroes', team: 'Choose your team', solo: 'Choose your hero' }[mode];
+    $('lbl1').textContent = mode === 'solo' ? 'You' : 'Player 1';
     $('hint1').textContent = mode === 'solo' ? 'WASD or arrow keys' : 'A D · W · Ctrl';
     $('hint2').textContent = '← → · ↑ · Right Ctrl';
     if (mode !== 'solo' && looks.p1.color === looks.p2.color) looks.p2.color = (PALETTE.find(p => p[1] !== looks.p1.color) || PALETTE[1])[1];
@@ -426,7 +461,7 @@
     const humanCols = mode === 'solo' ? [looks.p1.color] : [looks.p1.color, looks.p2.color];
     const free = PALETTE.map(p => p[1]).filter(c => !humanCols.includes(c));      // CPU bears take colors nobody chose
     let ci = 0;
-    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', style: Math.random() < 0.5 ? 'pixel' : 'gummy', label: 'CPU' });
+    const A = () => ({ controller: 'ai', color: free[ci++ % free.length], gender: Math.random() < 0.5 ? 'm' : 'f', style: Object.keys(FIGURES)[Math.floor(Math.random() * Object.keys(FIGURES).length)], label: 'CPU' });
     let teams, tn;
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
@@ -723,7 +758,7 @@
   /* ---- host ---- */
   function hostStartMatch(h) {
     const mine = online.me;
-    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm', style: h.s === 'pixel' ? 'pixel' : 'gummy' };
+    online.guest = { name: cleanName(h.n) || 'Guest', color: goodColor(h.c), gender: h.g === 'f' ? 'f' : 'm', style: styleOf(h.s) };
     if (online.guest.color === mine.c) online.guest.color = otherColor(mine.c);
     newOnlineGame();
   }
@@ -742,7 +777,7 @@
   function buildGuestGame(cfg) {
     online.gid = cfg.gid; online.lastQ = -1; online.q.length = 0; online.pendEv.length = 0; online.primed = false; online.myRm = false;
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
-    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', style: cfg.styles && cfg.styles[i] === 'pixel' ? 'pixel' : 'gummy', label: cleanName(cfg.names[i]) });
+    const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), gender: cfg.genders[i] === 'f' ? 'f' : 'm', style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
     game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
@@ -807,9 +842,9 @@
   $('onCodeIn').oninput = () => { $('onCodeIn').value = $('onCodeIn').value.toUpperCase().replace(/[^A-Z]/g, ''); };
   $('btnShare').onclick = async () => {
     const url = location.origin + location.pathname + '?room=' + (online && online.code || '');
-    const text = 'Play Beach Volley Buddy with me! Room code: ' + (online && online.code);
+    const text = 'Play Beach Volley Hero with me! Room code: ' + (online && online.code);
     try {
-      if (navigator.share) await navigator.share({ title: 'Beach Volley Buddy', text, url });
+      if (navigator.share) await navigator.share({ title: 'Beach Volley Hero', text, url });
       else { await navigator.clipboard.writeText(url); onlineStatus('Invite link copied!'); }
     } catch (err) { /* cancelled */ }
   };
