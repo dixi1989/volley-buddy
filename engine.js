@@ -23,7 +23,7 @@
     ALMAN_FRAMES: 600, ALMAN_MULT: 0.8, // 10 s, speed and jump height at 80 %
     AURA_FRAMES: 600, AURA_MULT: 1.3,   // 10 s, hit box 30 % larger
     // Volley Fight: weapons
-    WEAPON_CD: 96, WEAPON_SWING: 14,    // cooldown 1.6 s, swing lasts 14 frames
+    WEAPON_CD: 72, WEAPON_SWING: 14,    // cooldown 1.2 s, swing lasts 14 frames
     DIP_G: 0.128,                        // extra gravity on a ball hit by the birch rod
     SHOT_R: 7,                          // ranged weapons: projectile radius (speed, cooldown ... see RANGED)
     SHOT_BOOST: 1.38, SHOT_SLOW: 0.55   // ball speed factor: bolt hits a ball flying to the opponents (boost) / toward the shooter's side (slow)
@@ -52,19 +52,19 @@
   const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', shotgun: 'ranged', revolver: 'ranged' };
   /* Ranged weapons (no auto-aim): n projectiles per shot spread by `spread` rad, speed v px/frame, flight time `life` frames, cooldown `cd` frames. */
   const RANGED = {
-    shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 100 },      // 3 pellets, short range, slow to reload
-    revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 42 }        // one bullet, quick to fire again
+    shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 76 },      // 3 pellets, short range, slow to reload
+    revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 32 }        // one bullet, quick to fire again
   };
   const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
   const kindOf = style => WEAPON_KIND[weaponOf(style)];
   /* Melee weapons: reach beyond the body, ball speed after the hit, direction (fwd = toward the opponents, up < 0 = upward, aimW = how much the
    * direction of the hit relative to the body counts), cooldown in frames, optional dip = frames of extra gravity. */
   const MELEE = {
-    sword:  { reach: 62,  v: 13.2, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 96 },               // all-rounder
-    katana: { reach: 58,  v: 14.4,  fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 78 },               // fastest, flat, recharges quickly
-    kebabknife: { reach: 58, v: 14.4, fwd: 1.0, up: -0.06, aimW: 0.15, cd: 78 },              // Kebabi's doner knife: same values as the katana
-    lasso:  { reach: 112, v: 10.8, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 126 },              // long reach, high lob, slow recharge
-    rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
+    sword:  { reach: 62,  v: 13.2, fwd: 0.85, up: -0.25, aimW: 0.6,  cd: 72 },               // all-rounder
+    katana: { reach: 58,  v: 14.4,  fwd: 1.0,  up: -0.06, aimW: 0.15, cd: 58 },               // fastest, flat, recharges quickly
+    kebabknife: { reach: 58, v: 14.4, fwd: 1.0, up: -0.06, aimW: 0.15, cd: 58 },              // Kebabi's doner knife: same values as the katana
+    lasso:  { reach: 112, v: 10.8, fwd: 0.7,  up: -0.95, aimW: 0.1,  cd: 94 },              // long reach, high lob, slow recharge
+    rod:    { reach: 52,  v: 12,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 76, dip: 55 }      // the ball dips steeply behind the net
   };
   const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : MELEE[weaponOf(style)].cd);
   /* Direction of a ranged shot (no auto-aim): the player HOLDS the special key and the aim sweeps up and down; releasing fires.

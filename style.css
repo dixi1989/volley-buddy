@@ -31,6 +31,8 @@ input{width:70%;text-align:center;font-size:18px}
 .keys{margin-top:10px;font-size:clamp(11px,1.7vw,13px);color:#e3d9ff;text-align:left;display:grid;gap:4px;background:#140a3399;border-left:3px solid #ee1a8c;border-radius:4px;padding:8px 10px}
 .padstatus{margin:2px 0 0;font-size:13px;color:#8dffb8;letter-spacing:.5px}
 .padstate{font-weight:700}
+.padhint{display:none;margin:4px 0 0;font-size:13px;color:#8dffb8}
+.haspad .padhint{display:block}
 .padstate.on{color:#8dffb8}
 .padstate.off{color:#b6a5ee}
 .opts{align-items:flex-start}

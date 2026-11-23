@@ -704,6 +704,7 @@
     // team names
     ctx.font = '700 13px ' + FONT; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(names[0], 14, 24, 150);
     ctx.textAlign = 'right'; ctx.fillText(names[1], C.W - 14, 24, 150);
+    if (padSig) { ctx.font = '700 11px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillText('Start: pause · Select: quit', C.W - 14, C.H - 8); }
     // Volley Fight: how to use the weapon (first seconds of a match)
     if (g.fight && g.frames < 480 && g.mode !== 'duel') {
       const me = g.mode === 'online' ? g.blobs[g.localTeam] : g.blobs.find(b => b.controller === 'human');
@@ -972,16 +973,16 @@
   /* Standard layout: A = jump / select, B = back, left stick or D-pad = move, RT (or RB) = power-up / weapon, Start = pause.
    * Controller 1 plays Player 1 (the same keys as WASD + Ctrl), controller 2 plays Player 2. In the menus every controller navigates.
    * Browsers only list a controller after a button was pressed on it once. */
-  const PAD = { jump: [0], special: [7, 5], left: [14], right: [15], up: [12], down: [13], ok: 0, back: 1, start: 9, dead: 0.45 };
+  const PAD = { jump: [0], special: [7, 5], left: [14], right: [15], up: [12], down: [13], ok: 0, back: 1, start: 9, select: 8, dead: 0.45 };
   const PAD_CODES = ['PadLeft', 'PadRight', 'PadJump', 'PadSpecial', 'Pad2Left', 'Pad2Right', 'Pad2Jump', 'Pad2Special'];
-  let usingPad = false, padSig = '', padPrev = { ok: false, back: false, start: false }, padDir = {};
+  let usingPad = false, padSig = '', padPrev = { ok: false, back: false, start: false, select: false }, padDir = {};
   function padStatus(list) {
     const sig = list.map(g => g.id).join('|');
     if (sig === padSig) return;
     padSig = sig;
     const short = id => id.replace(/\s*\(.*$/, '').replace(/\s*Vendor:.*$/i, '').trim().slice(0, 40) || 'Controller';
     const txt = list.length ? '🎮 ' + (list.length > 1 ? list.length + ' controllers' : short(list[0].id)) + ' connected' : '';
-    const b = $('padBadge'); b.textContent = txt; b.hidden = !list.length;
+    const b = $('padBadge'); b.textContent = txt; b.hidden = !list.length; document.body.classList.toggle('haspad', list.length > 0);
     const st = $('padState');
     if (list.length) { st.textContent = '– ' + txt.slice(3); st.className = 'padstate on'; }
     else { st.textContent = '– no controller found (press any button on it)'; st.className = 'padstate off'; }
@@ -995,7 +996,7 @@
     const btn = (g, n) => !!(g.buttons[n] && (g.buttons[n].pressed || g.buttons[n].value > 0.5));
     const anyBtn = (g, arr) => arr.some(n => btn(g, n));
     const now = performance.now();
-    const dirs = { left: false, right: false, up: false, down: false }, cur = { ok: false, back: false, start: false };
+    const dirs = { left: false, right: false, up: false, down: false }, cur = { ok: false, back: false, start: false, select: false };
     list.forEach((g, i) => {
       const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
       const left = ax < -PAD.dead || anyBtn(g, PAD.left), right = ax > PAD.dead || anyBtn(g, PAD.right);
@@ -1007,7 +1008,7 @@
       if (left) dirs.left = true; if (right) dirs.right = true;
       if (ay < -PAD.dead || anyBtn(g, PAD.up)) dirs.up = true;
       if (ay > PAD.dead || anyBtn(g, PAD.down)) dirs.down = true;
-      if (btn(g, PAD.ok)) cur.ok = true; if (btn(g, PAD.back)) cur.back = true; if (btn(g, PAD.start)) cur.start = true;
+      if (btn(g, PAD.ok)) cur.ok = true; if (btn(g, PAD.back)) cur.back = true; if (btn(g, PAD.start)) cur.start = true; if (btn(g, PAD.select)) cur.select = true;
       if (left || right || jump || special || ay < -PAD.dead || ay > PAD.dead) usingPad = true;
     });
     // menus: directions repeat while held, A / B / Start act once per press
@@ -1020,7 +1021,9 @@
       if (cur.ok && !padPrev.ok) uiAction('ok');
       if (cur.back && !padPrev.back) uiAction('back');
     } else padDir = {};
+    // Start = pause menu (Resume / Menu), press again to resume; Select (Back / View) = pause menu with "Menu" ready, so Select + A leaves the match
     if (cur.start && !padPrev.start) { if (phase === 'play') openPause(); else if (phase === 'pause') setPhase('play'); }
+    if (cur.select && !padPrev.select) { if (phase === 'play') { openPause(); $('btnQuit').focus(); } else if (phase === 'pause') setPhase('play'); }
     padPrev = cur;
   }
   addEventListener('gamepadconnected', () => { padSig = ''; });
