@@ -780,6 +780,7 @@
   };
   $('buildInfo').addEventListener('click', openChangelog);
   $('buildInfo').addEventListener('pointerup', openChangelog);       // finger taps on a tiny label: do not rely on click alone
+  $('btnChangelog').onclick = openChangelog;
   $('btnChangelogBack').onclick = () => setPhase('menu');
   let clearArmed = false;
   $('btnScoresClear').onclick = () => {
