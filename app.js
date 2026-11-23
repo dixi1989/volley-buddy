@@ -57,6 +57,18 @@
     shotgun: ['Shotgun', '3 pellets, short range, slow reload. Hold the key to aim, release to fire.'],
     revolver: ['Revolver', '1 bullet, fires again quickly. Hold the key to aim, release to fire.']
   };
+  /* Pixel glyphs for the male / female buttons (drawn on a small grid, shown 3x crisp) */
+  const GLYPH = {
+    m: ['......#####', '........#.#', '.......#..#', '..###.#...#', '.#...#.....', '.#...#.....', '.#...#.....', '.#...#.....', '..###......'],
+    f: ['..###..', '.#...#.', '.#...#.', '.#...#.', '.#...#.', '..###..', '...#...', '.#####.', '...#...', '...#...']
+  };
+  function glyph(g, color) {
+    const rows = GLYPH[g], c = document.createElement('canvas'), S = 3;
+    c.width = rows[0].length * S; c.height = rows.length * S;
+    const x = c.getContext('2d'); x.fillStyle = color;
+    rows.forEach((row, y) => [...row].forEach((ch, i) => { if (ch === '#') x.fillRect(i * S, y * S, S, S); }));
+    return c;
+  }
   const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
   function drawTile(c, spec) {
@@ -88,7 +100,8 @@
     });
     const r2 = document.createElement('div'); r2.className = 'lrow';
     [['m', '♂'], ['f', '♀']].forEach(([g, label]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.textContent = label; b.title = g === 'm' ? 'Male' : 'Female'; b.dataset.k = box.id + ':g:' + g;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'gd' + (me.gender === g ? ' sel' : ''); b.title = g === 'm' ? 'Male' : 'Female'; b.dataset.k = box.id + ':g:' + g; b.setAttribute('aria-label', b.title);
+      b.appendChild(glyph(g, me.gender === g ? '#ffffff' : '#d9ccff'));
       b.onclick = () => { me.gender = g; store.set('vb_looks', looks); redo(); };
       r2.appendChild(b);
     });
@@ -175,14 +188,16 @@
     if (!cur) { els[0].focus(); return; }
     const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
     const horiz = code === 'left' || code === 'right', sgn = (code === 'left' || code === 'up') ? -1 : 1;
-    let best = null, bd = Infinity;
+    // 1st choice: the nearest control in the same row (left / right) or column (up / down); 2nd: the nearest one in that general direction
+    let best = null, bd = Infinity, aligned = false;
     for (const e of els) {
       if (e === cur) continue;
       const r = e.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
       const main = (horiz ? dx : dy) * sgn, side = Math.abs(horiz ? dy : dx);
       if (main < 4) continue;
+      const same = horiz ? side < Math.min(r.height, cr.height) * 0.5 : side < Math.min(r.width, cr.width) * 0.5;   // centres overlap on the other axis
       const d = main + side * 2.5;
-      if (d < bd) { bd = d; best = e; }
+      if ((same && !aligned) || (same === aligned && d < bd)) { bd = d; best = e; aligned = same; }
     }
     if (best) best.focus();
   }
