@@ -30,12 +30,15 @@
 
   $('level').value = settings.level; $('target').value = String(settings.target); $('onRules').value = 'fight'; $('onTarget').value = String(settings.target);
   if (!['beach', 'moon', 'water', 'doner', 'hole', 'random'].includes(settings.stage)) settings.stage = 'beach';
-  $('stagePick').value = settings.stage; $('onStage').value = settings.stage;
-  $('stagePick').addEventListener('change', () => { settings.stage = $('stagePick').value; $('onStage').value = settings.stage; saveSettings(); syncSegs(); });
-  $('onStage').addEventListener('change', () => { settings.stage = $('onStage').value; $('stagePick').value = settings.stage; saveSettings(); syncSegs(); });
+  $('onStage').value = settings.stage;
+  $('onStage').addEventListener('change', () => { settings.stage = $('onStage').value; saveSettings(); syncStageTiles(); });
+  /* stage select: own step after the hero select (local modes) */
+  function syncStageTiles() { document.querySelectorAll('#stageTiles [data-stage]').forEach(b => b.classList.toggle('sel', b.dataset.stage === settings.stage)); }
+  document.querySelectorAll('#stageTiles [data-stage]').forEach(b => { b.onclick = () => { settings.stage = b.dataset.stage; $('onStage').value = settings.stage; saveSettings(); syncStageTiles(); syncSegs(); }; });
+  syncStageTiles();
   const pickStage = v => v === 'random' ? STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)] : v;
   /* pixel buttons side by side replace the dropdowns (the hidden <select> keeps the value, so the rest of the code is unchanged) */
-  const SEGS = ['level', 'target', 'stagePick', 'onRules', 'onTarget', 'onStage'].map(id => {
+  const SEGS = ['level', 'target', 'onRules',, 'onTarget', 'onStage'].map(id => {
     const sel = $(id), box = document.querySelector('[data-for="' + id + '"]');
     [...sel.options].forEach(o => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = o.textContent; b.dataset.v = o.value; b.dataset.k = 'seg:' + id + ':' + o.value;
@@ -57,7 +60,7 @@
   let phase = 'menu';           // menu | setup | scores | play | pause | over
   let game = null, demo = null, setupMode = null, lastSetup = null;
   let online = null;            // online match state (see 'online play' below)
-  const MENU_PHASES = new Set(['menu', 'mode', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto']);
+  const MENU_PHASES = new Set(['menu', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto']);
   const COLORS = { blue: '#3aa0ff', red: '#ff5a55', green: '#4cd964', yellow: '#ffc933' };
   const PALETTE = [['Blue', '#3aa0ff'], ['Red', '#ff5a55'], ['Green', '#4cd964'], ['Yellow', '#ffc933'],
                    ['Orange', '#ff9a3c'], ['Purple', '#b36bff'], ['Pink', '#ff7ac8'], ['Turquoise', '#2fd9c8']];
@@ -134,7 +137,22 @@
     fillLook($('look2'), 'p2', 'p1', renderLooks);
   }
   /* animated previews of the chosen figures (low-res canvas, same pixel size as in the game) */
+  /* stage previews: the real backdrops, scaled down (about 12 fps) */
+  let stPrevT = 0;
+  function drawStagePreviews(t) {
+    if (t - stPrevT < 0.08) return; stPrevT = t;
+    document.querySelectorAll('#stageTiles [data-stage]').forEach((b, n) => {
+      const cv = b.querySelector('canvas'), c = cv.getContext('2d'), id = b.dataset.stage, k = cv.width / C.W;
+      c.setTransform(k, 0, 0, k, 0, 0); c.imageSmoothingEnabled = false;
+      if (id !== 'random') { Scene.drawBackground(c, t, null, id); return; }
+      const ids = ['beach', 'moon', 'water', 'doner'];     // random: four stages in quarters, a question mark on top
+      ids.forEach((sid, q) => { c.save(); c.beginPath(); c.rect((q % 2) * C.W / 2, (q >> 1) * C.H / 2, C.W / 2, C.H / 2); c.clip(); Scene.drawBackground(c, t, null, sid); c.restore(); });
+      c.fillStyle = 'rgba(10,5,30,.45)'; c.fillRect(0, 0, C.W, C.H);
+      c.fillStyle = '#ffe45e'; c.textAlign = 'center'; c.font = '700 320px "Jersey 10", system-ui, sans-serif'; c.fillText('?', C.W / 2, C.H * 0.78);
+    });
+  }
   function drawPreviews(t) {
+    if (phase === 'stage') drawStagePreviews(t);
     if (phase !== 'setup' && phase !== 'online') return;
     for (const p of previews) {
       if (!p.c.offsetParent) continue;
@@ -151,6 +169,7 @@
     $('menu').hidden = p !== 'menu';
     $('modeSel').hidden = p !== 'mode';
     $('setup').hidden = p !== 'setup';
+    $('stageSel').hidden = p !== 'stage';
     $('online').hidden = p !== 'online';
     $('scores').hidden = p !== 'scores';
     $('powerups').hidden = p !== 'powerups';
@@ -160,7 +179,7 @@
     $('over').hidden = p !== 'over';
     // keyboard navigation: focus the first button of the end-of-match / pause dialog
     if (p === 'over') $('btnAgain').focus(); else if (p === 'pause') $('btnResume').focus();
-    const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
+    const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), stage: () => document.querySelector('#stageTiles .sel') || document.querySelector('#stageTiles button'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
     if (focusFirst) { const e = focusFirst(); if (e) e.focus(); }
     $('touch').hidden = !(touchMode && p === 'play');
     if (p === 'play') { const tl = document.querySelector('#touch [data-k="TouchSpecial"] small'); if (tl) tl.textContent = game && game.fight ? 'WEAPON' : 'POWER-UP'; }
@@ -176,14 +195,15 @@
     navFocus(a);
   }
   function uiBack() {
-    if (phase === 'setup') setPhase(setupMode === 'throne' ? 'menu' : 'mode');
+    if (phase === 'stage') setPhase('setup');
+    else if (phase === 'setup') setPhase(setupMode === 'throne' ? 'menu' : 'mode');
     else if (phase === 'mode' || phase === 'scores' || phase === 'powerups' || phase === 'controls' || phase === 'howto') setPhase('menu');
     else if (phase === 'online') { lobbyBusy(false); leaveOnline(); setPhase('menu'); }
     else if (phase === 'play') openPause();
     else if (phase === 'pause') setPhase('play');
   }
   /* Moves the focus to the nearest control in that direction (all menus, dialogs, the hero select). */
-  const NAV_PHASES = new Set(['menu', 'mode', 'setup', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
+  const NAV_PHASES = new Set(['menu', 'mode', 'setup', 'stage', 'online', 'scores', 'powerups', 'controls', 'howto', 'over', 'pause']);
   function navFocus(code) {
     const scope = document.querySelector('.overlay:not([hidden])');
     if (!scope) return;
@@ -464,7 +484,7 @@
     const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT');
     if (typing) {
       if (phase === 'setup' && e.key === 'Enter' && e.target.tagName === 'INPUT') beginMatch();
-      else if (e.key === 'Escape' && (phase === 'setup' || phase === 'online')) uiBack();
+      else if (e.key === 'Escape' && (phase === 'setup' || phase === 'stage' || phase === 'online')) uiBack();
       else if (phase === 'online' && e.key === 'Enter' && e.target.id === 'onCodeIn') $('btnJoin').click();
       return;
     }
@@ -530,6 +550,7 @@
     $('row2').hidden = solo;
     $('setupFields').classList.toggle('single', solo); $('setupPanel').classList.toggle('solo', solo);
     $('setupTitle').textContent = { duel: 'Choose your heroes', team: 'Choose your team', solo: 'Choose your hero', throne: 'Climb to the Volley Throne' }[mode];
+    $('btnStart').textContent = mode === 'throne' ? 'Fight!' : 'Next ▶';
     $('lbl1').textContent = solo ? 'You' : 'Player 1';
     $('hint1').textContent = solo ? 'WASD or arrow keys' : 'A D · W · Ctrl';
     $('hint2').textContent = '← → · ↑ · Right Ctrl';
@@ -543,8 +564,13 @@
     const n1 = clean($('name1').value), n2 = clean($('name2').value);
     names.p1 = n1; names.p2 = n2; store.set('vb_names', names);
     settings.level = $('level').value; settings.target = +$('target').value; saveSettings();
-    startGame(setupMode, n1 || (setupMode === 'solo' || setupMode === 'throne' ? 'You' : 'Player 1'), n2 || 'Player 2');
+    pendingNames = [n1 || (setupMode === 'solo' || setupMode === 'throne' ? 'You' : 'Player 1'), n2 || 'Player 2'];
+    if (setupMode === 'throne') { startGame(setupMode, pendingNames[0], pendingNames[1]); return; }
+    syncStageTiles(); setPhase('stage');
   }
+  let pendingNames = ['', ''];
+  $('btnStageGo').onclick = () => startGame(setupMode, pendingNames[0], pendingNames[1]);
+  $('btnStageBack').onclick = () => setPhase('setup');
 
   /* --------------------------------------------------------- start a match */
   function startGame(mode, p1, p2) {

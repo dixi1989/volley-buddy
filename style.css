@@ -248,3 +248,21 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 #online .seg button{height:24px;min-width:44px;padding:0 8px;margin:2px;font-size:14px}
 #online .opt{font-size:13px;gap:0}
 #online .opts{margin:0}
+
+/* v49: stage select as its own step */
+#stageSel .panel{max-width:560px}
+.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.stages button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;background:#140a33;color:#d9ccff;border:0;border-radius:0;box-shadow:0 0 0 2px #69cbdc;font-weight:400}
+.stages button .si{font-size:30px;line-height:1.1}
+.stages button b{font-size:17px}
+.stages button small{font-size:12px;color:#a99be0;letter-spacing:0}
+.stages button:hover{background:#2b1a73}
+.stages button.sel{background:#ee1a8c;color:#fff;box-shadow:0 0 0 2px #fff}
+.stages button.sel small{color:#ffe0f0}
+.stages button canvas.sp{width:100%;height:auto;aspect-ratio:200/112;image-rendering:pixelated;display:block;margin-bottom:4px;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
+.stages button.sel canvas.sp{box-shadow:0 0 0 2px #fff}
+#stageSel .panel{max-width:480px;padding:10px 16px}
+#stageSel h2{font-size:26px;margin:0}
+.stages{gap:8px;margin:6px 0}
+.stages button{padding:6px 5px}
+.stages button b{font-size:15px}

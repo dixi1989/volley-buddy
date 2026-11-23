@@ -56,10 +56,6 @@
           <select id="target" hidden><option value="5">5</option><option value="11" selected>11</option><option value="15">15</option></select>
           <div class="seg" data-for="target"></div>
         </div>
-        <div class="opt"><span>Stage</span>
-          <select id="stagePick" hidden><option value="beach">Beach</option><option value="moon">Moon</option><option value="water">Water</option><option value="doner">Döner</option><option value="hole">Hole</option><option value="random">Random</option></select>
-          <div class="seg" data-for="stagePick"></div>
-        </div>
       </div>
       <div class="row"><button id="btnModeBack" class="ghost">Back</button></div>
     </div>
@@ -86,6 +82,25 @@
       <div class="row">
         <button id="btnStart">Fight!</button>
         <button id="btnSetupBack" class="ghost">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage select (step after the hero select) -->
+  <div id="stageSel" class="overlay" hidden>
+    <div class="panel">
+      <h2>Choose the stage</h2>
+      <div class="stages" id="stageTiles">
+        <button type="button" data-stage="beach" data-k="stage:beach"><canvas class="sp" width="200" height="112"></canvas><b>Beach</b><small>The classic</small></button>
+        <button type="button" data-stage="moon" data-k="stage:moon"><canvas class="sp" width="200" height="112"></canvas><b>Moon Station</b><small>Low gravity</small></button>
+        <button type="button" data-stage="water" data-k="stage:water"><canvas class="sp" width="200" height="112"></canvas><b>Underwater</b><small>Slow and heavy</small></button>
+        <button type="button" data-stage="doner" data-k="stage:doner"><canvas class="sp" width="200" height="112"></canvas><b>Döner Shop</b><small>Spit as the net</small></button>
+        <button type="button" data-stage="hole" data-k="stage:hole"><canvas class="sp" width="200" height="112"></canvas><b>Black Hole Arena</b><small>Pulls the ball</small></button>
+        <button type="button" data-stage="random" data-k="stage:random"><canvas class="sp" width="200" height="112"></canvas><b>Random</b><small>Surprise me</small></button>
+      </div>
+      <div class="row">
+        <button id="btnStageGo">Fight!</button>
+        <button id="btnStageBack" class="ghost">Back</button>
       </div>
     </div>
   </div>
@@ -186,7 +201,7 @@
         <li><b>Modes:</b> 1 : 1 on one keyboard, 2 : 2 with two humans against two CPU heroes, or 1 : 1 against the CPU (Easy / Normal / Hard).</li>
         <li><b>Phone:</b> play sideways. Use the buttons at the bottom: ◀ ▶ to move, ▲ to jump, ⚡ for power-ups, ⏸ for the menu. Add the game to your home screen (Install) for full screen.</li>
         <li><b>Figures:</b> before each match pick your name, hero (Pixel Hero, Cyborg, Cowboy, Ninja, Kebabi the doner kebab, Adventurer, Santa, McRib the burger, Transformer the car, Cloudy the thundercloud, Gagari the astronaut or Kindi the chocolate bar) and colour (swimwear, paint or wrapper).</li>
-        <li><b>Stages:</b> pick the arena in the menu (or Random). <b>Beach</b> is the classic. <b>Moon Station</b> has low gravity – long, floaty jumps and rallies. <b>Underwater</b> is slow and heavy: everything moves more slowly and the ball drifts. <b>Döner Shop</b> has the same physics as the beach – the net is a rotating doner spit and a chef slices away next to it. <b>Black Hole Arena</b> has a black hole above the net that gently pulls the ball towards it. In the Volley Throne the first five rounds use random stages and the final is fought in the Black Hole Arena.</li>
+        <li><b>Stages:</b> pick the arena after choosing your hero (or Random). <b>Beach</b> is the classic. <b>Moon Station</b> has low gravity – long, floaty jumps and rallies. <b>Underwater</b> is slow and heavy: everything moves more slowly and the ball drifts. <b>Döner Shop</b> has the same physics as the beach – the net is a rotating doner spit and a chef slices away next to it. <b>Black Hole Arena</b> has a black hole above the net that gently pulls the ball towards it. In the Volley Throne the first five rounds use random stages and the final is fought in the Black Hole Arena.</li>
         <li><b>Online:</b> one player creates a room and shares the 4-letter code (or the invite link), the other joins. The host's browser runs the game, so the host should keep the tab in the foreground.</li>
         <li><b>Power-ups:</b> every 30 s each player gets one falling from the sky. Catch it with your hero (3 can be stored), then press Ctrl to use it. See the Power-ups page for what they do.</li>
         <li><b>Volley Throne:</b> a single-player climb in Volley Fight rules. You face 6 random heroes one after another, each CPU stronger than the last (first to 5 points, the final first to 7). Lose a fight and you start again from the bottom – win all six and you claim the throne.</li>
