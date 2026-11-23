@@ -198,3 +198,19 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 .look .sw{width:22px;height:22px}
 #online .panel{padding:6px 14px}
 #online .look{gap:3px}
+
+/* v36: wider menus (big screens first), pixel logo blending into the beach scene, 2-column power-up list */
+.panel{max-width:748px}
+.small-panel{max-width:460px}
+#menu .panel{max-width:764px;background:linear-gradient(rgba(43,16,104,.72),rgba(26,10,69,.78));padding:8px 24px 10px}
+#menu h1{margin:0 auto;max-width:500px}
+#menu h1 img{display:block;margin:0 auto;width:100%;height:auto;image-rendering:pixelated;filter:none}
+#menu .modes{gap:14px}
+.pulist{grid-template-columns:1fr 1fr;gap:8px 10px}
+.pucard{grid-template-columns:48px 1fr}
+.pucard canvas{width:48px;height:48px}
+.keys{font-size:13px}
+#setupPanel.solo{max-width:640px}
+#online .panel{max-width:660px}
+.howto{grid-template-columns:1fr 1fr;gap:5px 8px;font-size:12px}
+.howto li{padding:4px 8px;line-height:1.3}

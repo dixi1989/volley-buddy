@@ -376,7 +376,7 @@
     ctx.restore();
   }
 
-  function drawBackground(ctx, t) {
+  function drawBackground(ctx, t, net) {
     const W = C.W, H = C.H;
     // sky
     const sky = ctx.createLinearGradient(0, 0, 0, 330);
@@ -486,15 +486,22 @@
     drawPalm(ctx, 22, C.GROUND + 8, 1, 1, t, 0.4);
     drawPalm(ctx, W - 22, C.GROUND + 8, 1, -1, t, 2.3);
 
-    // net post
-    ctx.fillStyle = 'rgba(60,20,90,.28)'; ctx.beginPath(); ctx.ellipse(C.NET_X, C.GROUND + 6, 19, 4.5, 0, 0, TAU); ctx.fill();
-    const x0 = C.NET_X - C.NET_HW, w = C.NET_HW * 2, h = C.GROUND - C.NET_TOP;
+    drawNet(ctx, net ? net.b : C.NET_X, net ? net.t : C.NET_X);
+  }
+
+  /* The net post from its foot (bx) to its top (tx); they differ while Faulty Level makes it lean. */
+  function drawNet(ctx, bx, tx) {
+    const H = C.GROUND - C.NET_TOP, L = Math.hypot(tx - bx, H), ang = Math.atan2(tx - bx, H);
+    ctx.fillStyle = 'rgba(60,20,90,.28)'; ctx.beginPath(); ctx.ellipse(bx, C.GROUND + 6, 19, 4.5, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(bx, C.GROUND); ctx.rotate(ang);
+    const x0 = -C.NET_HW, w = C.NET_HW * 2;
     const pg = ctx.createLinearGradient(x0, 0, x0 + w, 0);
     pg.addColorStop(0, '#8fdde8'); pg.addColorStop(0.4, '#ffffff'); pg.addColorStop(1, '#4fa9c4');
-    ctx.fillStyle = pg; ctx.fillRect(x0, C.NET_TOP, w, h);
+    ctx.fillStyle = pg; ctx.fillRect(x0, -L, w, L);
     ctx.fillStyle = '#ee1a8c';
-    for (let y = C.NET_TOP + 14; y < C.GROUND - 6; y += 28) ctx.fillRect(x0, y, w, 10);
-    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(C.NET_X, C.NET_TOP, C.NET_HW, Math.PI, 0); ctx.fill();
+    for (let y = 14; y < L - 6; y += 28) ctx.fillRect(x0, -L + y, w, 10);
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, -L, C.NET_HW, Math.PI, 0); ctx.fill();
+    ctx.restore();
   }
 
 
@@ -556,6 +563,20 @@
       ctx.save(); ctx.translate(x, y + 6 * size / 30); ctx.rotate(-0.08); const k = size / 30; ctx.scale(k, k);
       ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(1, 5, 15, 3, 0, 0, TAU); ctx.fill();
       bucketHat(ctx, 15.5, 12.5, 8.5, 4.6);
+      ctx.restore(); return;
+    }
+    if (type === 'level') {   // a broken spirit level: yellow bar, cracked, bubble stuck at the end of its vial
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-0.24); const k = size / 30; ctx.scale(k, k);
+      ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(1, 9, 15, 2.6, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffc933'; ctx.strokeStyle = '#6b4300'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-15, -6, 30, 12, 2.5); else ctx.rect(-15, -6, 30, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e0a21c'; ctx.fillRect(-14, 3, 28, 2.4); ctx.fillStyle = '#ff5a55'; ctx.fillRect(-14.2, -5, 3.2, 10); ctx.fillRect(11, -5, 3.2, 10);
+      ctx.fillStyle = '#d6f5c4'; ctx.strokeStyle = '#3a2a00'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-6.5, -3.4, 13, 6.8, 3.2); else ctx.rect(-6.5, -3.4, 13, 6.8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(3.6, 0, 2.3, 2, 0, 0, TAU); ctx.fill(); ctx.stroke();   // bubble far off-centre
+      ctx.beginPath(); ctx.moveTo(-1.6, -3.4); ctx.lineTo(-1.6, 3.4); ctx.moveTo(1.6, -3.4); ctx.lineTo(1.6, 3.4); ctx.stroke();
+      ctx.strokeStyle = '#3a2a00'; ctx.lineWidth = 1.3; ctx.beginPath();                                                      // crack
+      ctx.moveTo(9.5, -6); ctx.lineTo(7.2, -2.2); ctx.lineTo(10.2, 0.6); ctx.lineTo(8, 6); ctx.stroke();
       ctx.restore(); return;
     }
     ctx.save(); ctx.translate(x, y); ctx.rotate(-0.12); const k = size / 30; ctx.scale(k, k);
@@ -626,5 +647,5 @@
   }
   const C_TOWEL = C.TOWEL_FRAMES;
 
-  root.Scene = { drawBackground, drawBlob, drawLabel, drawShots, preview, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
+  root.Scene = { drawBackground, drawNet, drawBlob, drawLabel, drawShots, preview, jelly, poke, drawPowerup, drawTowels, drawItemIcon };
 })(typeof self !== 'undefined' ? self : this);

@@ -25,6 +25,8 @@
     // Volley Fight: weapons
     WEAPON_CD: 72, WEAPON_SWING: 14,    // cooldown 1.2 s, swing lasts 14 frames
     DIP_G: 0.128,                        // extra gravity on a ball hit by the birch rod
+    LEVEL_FRAMES: 600,                  // Faulty Level: 10 s
+    LEVEL_BASE: 45, LEVEL_TOP: 95,      // the net moves this far toward the activating team at the ground / at its top (it leans)
     SHOT_R: 7,                          // ranged weapons: projectile radius (speed, cooldown ... see RANGED)
     SHOT_BOOST: 1.38, SHOT_SLOW: 0.55   // ball speed factor: bolt hits a ball flying to the opponents (boost) / toward the shooter's side (slow)
   };
@@ -32,7 +34,8 @@
   const POWERUPS = {
     towel: { name: 'Fluffy Towel' },
     alman: { name: 'Alman Mode' },
-    aura: { name: 'Aura+10' }
+    aura: { name: 'Aura+10' },
+    level: { name: 'Faulty Level' }
   };
   const TYPES = Object.keys(POWERUPS);
 
@@ -100,16 +103,18 @@
     return [[c - 80, c + 80]];
   }
 
-  /* Ball vs. net (rectangle). Returns true on collision. */
-  function collideNet(ball, rng) {
-    const r = C.BALL_R;
-    const x0 = C.NET_X - C.NET_HW, x1 = C.NET_X + C.NET_HW;
-    const cx = clamp(ball.x, x0, x1), cy = clamp(ball.y, C.NET_TOP, C.GROUND);
+  /* Ball vs. net: a pole from the foot (bx, ground) to the top (tx, net top) with the net's thickness; both are NET_X when it stands upright
+   * (Faulty Level moves them). Returns true on collision. */
+  function collideNet(ball, rng, bx = C.NET_X, tx = C.NET_X) {
+    const r = C.BALL_R + C.NET_HW;
+    const sx = tx - bx, sy = C.NET_TOP - C.GROUND;
+    const u = clamp(((ball.x - bx) * sx + (ball.y - C.GROUND) * sy) / (sx * sx + sy * sy), 0, 1);
+    const cx = bx + sx * u, cy = C.GROUND + sy * u;
     const dx = ball.x - cx, dy = ball.y - cy;
     const d = Math.hypot(dx, dy);
     if (d >= r) return false;
     let nx, ny;
-    if (d === 0) { nx = ball.x < C.NET_X ? -1 : 1; ny = 0; }   // centre inside the net: push out sideways
+    if (d === 0) { nx = ball.x < cx ? -1 : 1; ny = 0; }   // centre inside the net: push out sideways
     else { nx = dx / d; ny = dy / d; }
     ball.x = cx + nx * r; ball.y = cy + ny * r;
     const vn = ball.vx * nx + ball.vy * ny;
@@ -119,7 +124,7 @@
     return true;
   }
 
-  function stepBallFree(ball, rng) {
+  function stepBallFree(ball, rng, bx, tx) {
     ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
     if (ball.dip > 0) ball.dip--;
     ball.x += ball.vx; ball.y += ball.vy;
@@ -127,7 +132,7 @@
     if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; }
     if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.85; }
     if (ball.y < r) { ball.y = r; ball.vy = Math.abs(ball.vy) * 0.4; }   // ceiling keeps the ball on screen
-    return collideNet(ball, rng);
+    return collideNet(ball, rng, bx, tx);
   }
 
   /* ---------------------------------------------------------------- Blob */
@@ -178,7 +183,7 @@
       if (--this.errTimer <= 0) { this.err = (rng() * 2 - 1) * p.err; this.errTimer = 25; }
       const pred = this.lag || sim.pred;
 
-      const mine = b.team === 0 ? pred.x < C.NET_X - 4 : pred.x > C.NET_X + 4;
+      const nb = sim.netBase(), mine = b.team === 0 ? pred.x < nb - 4 : pred.x > nb + 4;
       const mates = sim.blobs.filter(o => o.team === b.team && o.ai);
       const touches = sim.touches[b.team];
       const lastHit = (sim.lastTouchTeam === b.team && touches >= C.MAX_TOUCHES - 1);
@@ -250,7 +255,7 @@
       const held = sim.inv[b.team][0];
       if (sim.state === 'play' && held && rng() < p.use &&
           ((held === 'towel' && sim.towels[b.team] === 0) || (held === 'alman' && sim.alman[1 - b.team] === 0) ||
-         (held === 'aura' && sim.aura[b.team] === 0))) inp.special = true;
+         (held === 'aura' && sim.aura[b.team] === 0) || (held === 'level' && sim.faulty[b.team] === 0))) inp.special = true;
     }
   }
 
@@ -293,6 +298,8 @@
       this.towels = [0, 0];         // remaining frames of active Fluffy Towels (per team)
       this.alman = [0, 0];          // remaining frames of Alman Mode on each team (the team that is slowed down)
       this.aura = [0, 0];           // remaining frames of Aura+10 on each team (bigger hit box)
+      this.faulty = [0, 0];          // remaining frames of Faulty Level per activating team (the net leans toward that team)
+      this.tilt = 0;                // current net position: -1 = fully toward team 0, +1 = fully toward team 1 (eases toward the target)
       this.state = 'serve'; this.timer = C.SERVE_DELAY;
       this.startServe();
     }
@@ -313,9 +320,9 @@
     /* Predict where the ball arrives at hit height (ignores blobs). */
     predict() {
       const s = { x: this.ball.x, y: this.ball.y, vx: this.ball.vx, vy: this.ball.vy, dip: this.ball.dip || 0 };
-      const r = () => 0.5;
+      const r = () => 0.5, nb = this.netBase(), nt = this.netTopX();
       for (let t = 0; t < 400; t++) {
-        stepBallFree(s, r);
+        stepBallFree(s, r, nb, nt);
         if (s.vy > 0 && s.y >= C.HIT_Y) return { x: s.x, y: s.y, t };
       }
       return { x: s.x, y: s.y, t: 400 };
@@ -361,7 +368,10 @@
         if (this.towels[t] > 0 && --this.towels[t] === 0) this.emit('towelEnd', { team: t });
         if (this.alman[t] > 0 && --this.alman[t] === 0) this.emit('almanEnd', { team: t });
         if (this.aura[t] > 0 && --this.aura[t] === 0) this.emit('auraEnd', { team: t });
+        if (this.faulty[t] > 0 && --this.faulty[t] === 0) this.emit('levelEnd', { team: t });
       }
+      const want = (this.faulty[1] > 0 ? 1 : 0) - (this.faulty[0] > 0 ? 1 : 0);   // both active: they cancel out
+      this.tilt += clamp(want - this.tilt, -0.04, 0.04);                          // takes ~25 frames to lean over / straighten up
       if (--this.puTimer <= 0) this.spawnPowerups();
       for (let i = this.items.length - 1; i >= 0; i--) {
         const pu = this.items[i];
@@ -393,6 +403,10 @@
         this.aura[team] = C.AURA_FRAMES;           // own team: bigger hit box
         this.emit('activate', { team, item: type });
         this.say(POWERUPS[type].name + '!', 70);
+      } else if (type === 'level') {
+        this.faulty[team] = C.LEVEL_FRAMES;         // the net leans toward the activating team: their half shrinks, the other one grows
+        this.emit('activate', { team, item: type });
+        this.say(POWERUPS[type].name + '!', 70);
       } else if (type === 'alman') {
         const foe = 1 - team;                     // the opponents get the hat, sandals and socks
         this.alman[foe] = C.ALMAN_FRAMES;
@@ -400,6 +414,10 @@
         this.say(POWERUPS[type].name + '!', 70);
       }
     }
+    /* Net position (Faulty Level): x of the pole at height y, of its foot (the boundary between the two halves) and of its top. */
+    netXAt(y) { const f = (C.GROUND - clamp(y, C.NET_TOP, C.GROUND)) / (C.GROUND - C.NET_TOP); return C.NET_X + this.tilt * (C.LEVEL_BASE + (C.LEVEL_TOP - C.LEVEL_BASE) * f); }
+    netBase() { return C.NET_X + this.tilt * C.LEVEL_BASE; }
+    netTopX() { return C.NET_X + this.tilt * C.LEVEL_TOP; }
     onTowel(x) {
       for (let t = 0; t < 2; t++) {
         if (this.towels[t] <= 0) continue;
@@ -422,8 +440,8 @@
       b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow;
       b.x += b.vx;
       const r = C.BLOB_R;
-      if (b.team === 0) b.x = clamp(b.x, r, C.NET_X - C.NET_HW - r);
-      else b.x = clamp(b.x, C.NET_X + C.NET_HW + r, C.W - r);
+      if (b.team === 0) b.x = clamp(b.x, r, Math.min(this.netXAt(b.y - r), this.netXAt(b.y + r)) - C.NET_HW - r);
+      else b.x = clamp(b.x, Math.max(this.netXAt(b.y - r), this.netXAt(b.y + r)) + C.NET_HW + r, C.W - r);
 
       // Alman Mode: 80 % of the jump height needs sqrt(0.8) of the launch speed
       if (inp.jump && b.onGround) { b.vy = C.JUMP_V * (b.alman ? Math.sqrt(C.ALMAN_MULT) : 1); this.emit('jump', { blob: b.id }); }
@@ -578,7 +596,7 @@
       if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; this.emit('wall', {}); }
       if (ball.x > C.W - r) { ball.x = C.W - r; ball.vx = -Math.abs(ball.vx) * 0.85; this.emit('wall', {}); }
       if (ball.y < r) { ball.y = r; ball.vy = Math.abs(ball.vy) * 0.4; this.emit('wall', {}); }
-      if (collideNet(ball, this.rng)) this.emit('net', {});
+      if (collideNet(ball, this.rng, this.netBase(), this.netTopX())) this.emit('net', {});
       ball.spin *= 0.995;
 
       if (this.state === 'play') {
@@ -594,7 +612,7 @@
             this.emit('towel', {});
           } else {
             ball.y = C.GROUND - r;
-            const side = ball.x < C.NET_X ? 0 : 1;
+            const side = ball.x < this.netBase() ? 0 : 1;
             this.endRally(1 - side, 'ground');
             if (this.state !== 'play') { ball.vy = -Math.abs(ball.vy) * 0.3; ball.vx *= 0.6; }
           }

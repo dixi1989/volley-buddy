@@ -202,10 +202,11 @@
     const cr = cur.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
     const horiz = code === 'left' || code === 'right', sgn = (code === 'left' || code === 'up') ? -1 : 1;
     // nearest control in that direction; a control that overlaps the current one on the other axis (same row / column) is strongly preferred
-    // 1st pass: only controls that lie completely beyond the current one in that direction (a button below never counts as "to the right");
-    // 2nd pass (up / down only, nothing there): any control whose centre is further in that direction
+    // Passes, first match wins: (1) controls completely beyond the current one that also overlap it on the other axis (same row / column);
+    // (2) up / down only: completely beyond, anywhere; (3) up / down only: any control whose centre is further that way.
+    // Sideways never leaves the row, so "right" from a wide button never lands on a button of the next row.
     let best = null;
-    for (const strict of horiz ? [true] : [true, false]) {   // sideways: stay put at the end of a row instead of jumping to another row
+    for (const [strict, overlap] of horiz ? [[true, true]] : [[true, true], [true, false], [false, false]]) {
       let bd = Infinity;
       for (const e of els) {
         if (e === cur) continue;
@@ -214,12 +215,14 @@
         if (main < 4) continue;
         if (strict && !(horiz ? (sgn > 0 ? r.left >= cr.right - 2 : r.right <= cr.left + 2) : (sgn > 0 ? r.top >= cr.bottom - 2 : r.bottom <= cr.top + 2))) continue;
         const gap = horiz ? Math.max(0, Math.max(r.top, cr.top) - Math.min(r.bottom, cr.bottom)) : Math.max(0, Math.max(r.left, cr.left) - Math.min(r.right, cr.right));
+        if (overlap && gap > 0) continue;
         const d = main + gap * 4;
         if (d < bd) { bd = d; best = e; }
       }
       if (best) break;
     }
     if (best) best.focus();
+    else if (!horiz) { const pn = scope.querySelector('.panel'); if (pn && pn.scrollHeight > pn.clientHeight) pn.scrollTop += sgn * 80; }   // nothing to focus up / down: scroll long pages
   }
 
   /* -------------------------------------------------------------- layout */
@@ -426,6 +429,7 @@
       case 'activate':
         if (e.item === 'alman') techno(ANTHEM);
         else if (e.item === 'aura') techno();
+        else if (e.item === 'level') { tone(520, 0.1, 'square', 0.09, -260); tone(330, 0.16, 'triangle', 0.1, -140, 0.09); tone(150, 0.24, 'sawtooth', 0.06, -50, 0.2); }
         else { tone(300, 0.28, 'sine', 0.12, 500); tone(600, 0.2, 'triangle', 0.06, 300, 0.12); }
         break;
       case 'point':
@@ -613,6 +617,7 @@
   const PU_INFO = [
     ['towel', 'Fluffy Towel', 'Lays a towel on <i>your</i> half for 25 s. The ball bounces high off it instead of ending the rally.'],
     ['alman', 'Alman Mode', 'Your <i>opponents</i> get a bucket hat with flags, white socks and sandals for 10 s: only 80 % speed and 80 % jump height. Comes with a techno anthem.'],
+    ['level', 'Faulty Level', 'A broken spirit level: for 10 s the net leans over toward <i>your</i> side – your half gets smaller, your opponents\' half bigger.'],
     ['aura', 'Aura+10', 'Cool sunglasses: for 10 s your heroes\' ball hit box is <i>30 % bigger</i>, so the ball is easier to hit. Comes with a techno beat.']
   ];
   function renderPowerups() {
@@ -744,6 +749,7 @@
       const fx = [];
       if (g.towels[tm] > 0) fx.push({ icon: 'towel', left: g.towels[tm], max: C.TOWEL_FRAMES, good: true });
       if (g.aura[tm] > 0) fx.push({ icon: 'aura', left: g.aura[tm], max: C.AURA_FRAMES, good: true });
+      if (g.faulty[tm] > 0) fx.push({ icon: 'level', left: g.faulty[tm], max: C.LEVEL_FRAMES, good: true });
       if (g.alman[tm] > 0) fx.push({ icon: 'alman', left: g.alman[tm], max: C.ALMAN_FRAMES, good: false });
       fx.forEach((f, i) => {
         const x = tm === 0 ? 180 : 515, y = 64 + i * 21;
@@ -770,7 +776,7 @@
   function render(t) {
     const g = game || demo;
     ctx = loCtx; ctx.setTransform(1 / PIX, 0, 0, 1 / PIX, 0, 0);
-    Scene.drawBackground(ctx, t);
+    Scene.drawBackground(ctx, t, g && g.tilt ? { b: g.netBase(), t: g.netTopX() } : null);
     if (g) {
       g._ballRot = g._ballRot || { rot: 0 };
       Scene.drawTowels(ctx, g, t);
@@ -1025,6 +1031,9 @@
     if (cur.start && !padPrev.start) { if (phase === 'play') openPause(); else if (phase === 'pause') setPhase('play'); }
     if (cur.select && !padPrev.select) { if (phase === 'play') { openPause(); $('btnQuit').focus(); } else if (phase === 'pause') setPhase('play'); }
     padPrev = cur;
+    // right stick scrolls long pages (How to play ...)
+    const sy = Math.max(...list.map(g => Math.abs(g.axes[3] || 0) > 0.3 ? (g.axes[3] || 0) : 0), 0) || Math.min(...list.map(g => Math.abs(g.axes[3] || 0) > 0.3 ? (g.axes[3] || 0) : 0), 0);
+    if (sy && NAV_PHASES.has(phase)) { const pn = document.querySelector('.overlay:not([hidden]) .panel'); if (pn) pn.scrollTop += sy * 12; }
   }
   addEventListener('gamepadconnected', () => { padSig = ''; });
   addEventListener('gamepaddisconnected', () => { padSig = ''; });

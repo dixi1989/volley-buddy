@@ -19,7 +19,7 @@
       st: sim.state, tm: sim.timer, w: sim.winner, ms: sim.message, mt: sim.messageTimer,
       it: sim.items.map(p => [p.id, p.type, r2(p.x), r2(p.y), p.age]),
       sh: sim.shots.map(p => [r2(p.x), r2(p.y), r2(p.vx), r2(p.vy), p.team, p.k]),
-      inv: sim.inv, tw: sim.towels, am: sim.alman, au: sim.aura,
+      inv: sim.inv, tw: sim.towels, am: sim.alman, au: sim.aura, lv: sim.faulty, tl: r2(sim.tilt),
       ev: sim.events.slice()
     };
     if (cfg) s.cfg = cfg;
@@ -39,7 +39,7 @@
     sim.state = s.st; sim.timer = s.tm; sim.winner = s.w; sim.message = s.ms; sim.messageTimer = s.mt;
     sim.items = s.it.map(a => ({ id: a[0], type: a[1], x: a[2], y: a[3], by: a[3], age: a[4] }));
     sim.shots = (s.sh || []).map(a => ({ x: a[0], y: a[1], vx: a[2], vy: a[3], team: a[4], k: a[5] | 0, vol: 0 }));
-    sim.inv = s.inv; sim.towels = s.tw; sim.alman = s.am; sim.aura = s.au;
+    sim.inv = s.inv; sim.towels = s.tw; sim.alman = s.am; sim.aura = s.au; sim.faulty = s.lv || [0, 0]; sim.tilt = s.tl || 0;
     sim.events = s.ev || [];
   }
 

@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8">
+<style>
+@font-face{font-family:"Jersey 10";src:url("../vendor/fonts/jersey-10-latin-400-normal.woff2") format("woff2")}
+html,body{margin:0;background:transparent}
+canvas{display:block;image-rendering:pixelated;width:640px;height:248px}
+</style>
+<canvas id="c" width="160" height="62"></canvas>
+<script>
+/* "BEACH VOLLEY HERO" as pixel art on a 160x62 grid (shown 4x, transparent background). Rendered by tools/make_logo_pixel.py -> icons/logo.png */
+const W = 160, H = 62, cv = document.getElementById('c'), g = cv.getContext('2d');
+const grid = Array.from({ length: H }, () => Array(W).fill(null));
+const put = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < W && y < H) grid[y][x] = c; };
+const rect = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, c); };
+function line(x0, y0, x1, y1, c) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); for (let i = 0; i <= n; i++) put(x0 + (x1 - x0) * i / (n || 1), y0 + (y1 - y0) * i / (n || 1), c); }
+
+/* text -> boolean mask (hard edges: alpha threshold) */
+function mask(str, size, x, y, sh) {
+  const t = document.createElement('canvas'); t.width = W; t.height = H; const c = t.getContext('2d');
+  c.font = size + 'px "Jersey 10"'; c.textBaseline = 'alphabetic'; c.fillStyle = '#000';
+  const w = c.measureText(str).width; c.fillText(str, x < 0 ? Math.round((W - w) / 2) : x, y);
+  const d = c.getImageData(0, 0, W, H).data, m = Array.from({ length: H }, () => Array(W).fill(false));
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (d[(j * W + i) * 4 + 3] >= 110) { const ox = sh ? Math.floor((y - j) / sh) : 0; const xi = i + ox; if (xi >= 0 && xi < W) m[j][xi] = true; }
+  }
+  return m;
+}
+const dil = (m, r) => { const o = m.map(r_ => r_.slice()); for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (m[j][i]) for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const x = i + a, y = j + b; if (x >= 0 && y >= 0 && x < W && y < H) o[y][x] = true; } return o; };
+const paint = (m, f) => { for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (m[j][i]) put(i, j, f(i, j)); };
+const shift = (m, dx, dy) => { const o = Array.from({ length: H }, () => Array(W).fill(false)); for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (m[j][i] && i + dx < W && j + dy < H && i + dx >= 0 && j + dy >= 0) o[j + dy][i + dx] = true; return o; };
+const OUT = '#2a1740';
+
+function drawAll() {
+  // sun: a big disc behind the title, retro stripes cut into its lower half
+  const cx = 80, cy = 31, R = 30, bands = [[0, '#ff8fb8'], [10, '#ff5aa8'], [20, '#ee1a8c'], [32, '#b3158f'], [46, '#7a1a8f']];
+  for (let j = cy - R; j <= cy + R; j++) for (let i = cx - R; i <= cx + R; i++) {
+    const dx = i - cx, dy = j - cy; if (dx * dx + dy * dy > R * R) continue;
+    const row = j - (cy - R); let col = bands[0][1]; for (const [s, c] of bands) if (row >= s) col = c;
+    const cut = [[34, 1], [39, 2], [44, 3], [49, 4]].some(([s, h]) => row >= s && row < s + h);
+    if (!cut) put(i, j, col);
+  }
+  // sun rays as dotted pixels outside the disc
+  for (let a = 0; a < 24; a++) { const ang = a / 24 * Math.PI * 2; for (const r of [R + 4, R + 8]) { const x = cx + Math.cos(ang) * r * 1.35, y = cy + Math.sin(ang) * r * 0.95; if (y < H - 4) put(x, y, a % 2 ? '#ffd23f' : '#ff8fb8'); } }
+
+  // palms (small silhouettes at both sides)
+  function palm(x, flip) {
+    const f = flip, bx = x, topX = x + 6 * f, topY = 36;
+    for (let y = 60; y >= topY; y--) { const t = (60 - y) / (60 - topY); const px = Math.round(bx + 6 * f * t * t); put(px, y, '#5b2f8f'); put(px + 1, y, '#5b2f8f'); put(px + (f > 0 ? 1 : 0), y, '#7a4bb8'); }
+    // fronds: arcs that rise and then droop
+    [[-14, -8], [-10, -13], [-3, -15], [5, -15], [12, -12], [15, -6], [-12, -1], [14, 0]].forEach(([dx, dy], k) => {
+      for (let i = 0; i <= 14; i++) { const t = i / 14; const x = topX + dx * t, y = topY + dy * Math.sin(Math.PI * t * 0.55) + 9 * t * t; put(x, y, '#7a4bb8'); put(x, y + 1, '#5b2f8f'); if (i > 9) put(x, y, '#b58cf0'); }
+    });
+    put(topX, topY, '#b58cf0'); put(topX + 1, topY, '#ee1a8c'); put(topX - 1, topY + 2, '#ee1a8c');
+  }
+  palm(14, 1); palm(146, -1);
+
+  // BEACH VOLLEY (cyan-white chrome with pink shadow) and HERO (fire gradient with dark red extrusion)
+  const m1 = mask('BEACH VOLLEY', 23, -1, 17, 0);
+  paint(shift(dil(m1, 1), 1, 1), () => '#ee1a8c');
+  paint(dil(m1, 1), () => OUT);
+  paint(m1, (i, j) => (j < 6 ? '#ffffff' : j < 9 ? '#bfe9ff' : j < 12 ? '#6cc7ee' : '#3a8fd0'));
+  const m2 = mask('HERO', 58, -1, 58, 0);
+  let ext = m2; for (let k = 4; k >= 1; k--) paint(shift(dil(m2, 1), k, k), () => '#6e0f26');
+  paint(dil(m2, 2), () => OUT);
+  paint(dil(m2, 1), () => '#fff3c4');
+  paint(m2, (i, j) => (j < 28 ? '#fff6a0' : j < 33 ? '#ffd23f' : j < 38 ? '#ff9a1a' : j < 43 ? '#ff5a2a' : '#d7263d'));
+
+  // waves
+  for (let i = 0; i < W; i++) { const y = 60 + (Math.floor(i / 4) % 2); if (i % 8 < 5) put(i, y, '#2fd9c8'); if ((i + 4) % 8 < 3) put(i, 61, '#69cbdc'); }
+  // sparkles
+  [[22, 10], [138, 8], [150, 30], [10, 32]].forEach(([x, y]) => { put(x, y, '#fff'); put(x - 1, y, '#fff'); put(x + 1, y, '#fff'); put(x, y - 1, '#fff'); put(x, y + 1, '#fff'); });
+}
+document.fonts.load('40px "Jersey 10"').then(() => {
+  drawAll();
+  const img = g.createImageData(W, H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const c = grid[j][i]; if (!c) continue; const n = parseInt(c.slice(1), 16), o = (j * W + i) * 4; img.data[o] = n >> 16; img.data[o + 1] = (n >> 8) & 255; img.data[o + 2] = n & 255; img.data[o + 3] = 255; }
+  g.putImageData(img, 0, 0); document.body.dataset.ready = '1';
+});
+</script>
