@@ -53,8 +53,8 @@
     katana: ['Katana', 'Fastest, flat smash and a short recharge.'],
     lasso: ['Lasso', 'Very long reach: lobs the ball high over the net. Slow recharge.'],
     rod: ['Birch rod', 'The ball dips steeply behind the net. Short reach.'],
-    shotgun: ['Shotgun', '3 pellets, short range, slow reload. No auto-aim.'],
-    revolver: ['Revolver', '1 bullet, fires again quickly. No auto-aim.']
+    shotgun: ['Shotgun', '3 pellets, short range, slow reload. Hold the key to aim, release to fire.'],
+    revolver: ['Revolver', '1 bullet, fires again quickly. Hold the key to aim, release to fire.']
   };
   const figName = (id, gender) => (gender === 'f' && FIGURES[id].nameF) || FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
@@ -144,6 +144,7 @@
     const focusFirst = { menu: () => document.querySelector('#menu [data-rules]'), mode: () => document.querySelector('#modeSel [data-mode]'), scores: () => $('btnScoresBack'), powerups: () => $('btnPowerupsBack'), controls: () => $('btnControlsBack'), howto: () => $('btnHowtoBack') }[p];
     if (focusFirst) { const e = focusFirst(); if (e) e.focus(); }
     $('touch').hidden = !(touchMode && p === 'play');
+    if (p === 'play') { const tl = document.querySelector('#touch [data-k="TouchSpecial"] small'); if (tl) tl.textContent = game && game.fight ? 'WEAPON' : 'POWER-UP'; }
     if (p !== 'play') releaseTouchKeys();
   }
   /* ---- menu input, independent of the device ----
@@ -665,6 +666,18 @@
     // team names
     ctx.font = '700 13px ' + FONT; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillText(names[0], 14, 24, 150);
     ctx.textAlign = 'right'; ctx.fillText(names[1], C.W - 14, 24, 150);
+    // Volley Fight: how to use the weapon (first seconds of a match)
+    if (g.fight && g.frames < 480 && g.mode !== 'duel') {
+      const me = g.mode === 'online' ? g.blobs[g.localTeam] : g.blobs.find(b => b.controller === 'human');
+      if (me) {
+        const key = touchMode ? 'the WEAPON button' : (g.mode === 'online' || g.mode === 'solo' || g.mode === 'team' ? 'Ctrl' : 'Ctrl');
+        const txt = VB.kindOf(me.style) === 'ranged' ? 'Hold ' + key + ' to aim – release to fire' : 'Press ' + key + ' to swing your weapon at the ball';
+        ctx.globalAlpha = Math.min(1, (480 - g.frames) / 60);
+        ctx.font = '700 16px ' + FONT; ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(26,10,61,.85)'; ctx.strokeText(txt, 400, 432); ctx.fillStyle = '#ffe066'; ctx.fillText(txt, 400, 432);
+        ctx.globalAlpha = 1;
+      }
+    }
     // touches (3 dots per side)
     for (let tm = 0; tm < 2; tm++) {
       const used = g.lastTouchTeam === tm ? g.touches[tm] : 0;

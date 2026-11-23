@@ -234,6 +234,11 @@
     const idle = ranged ? VB.shotAngle(b) : (dir === 1 ? -1.15 : Math.PI + 1.15);   // a ranged weapon always shows its line of fire
     const ang = ranged ? (b.swing > 0 ? (b.aim || 0) : idle) : (p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir);
     ctx.save(); ctx.translate(dir * 14, 4 + cy);
+    if (ranged && b.aimHold > 0 && b.cd === 0) {                         // aiming: dotted line of fire
+      const W = VB.RANGED[kind], L = Math.min(W.v * W.life * 0.9, 330);
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.lineDashOffset = -t * 30;
+      ctx.beginPath(); ctx.moveTo(Math.cos(ang) * 30, Math.sin(ang) * 30); ctx.lineTo(Math.cos(ang) * L, Math.sin(ang) * L); ctx.stroke(); ctx.setLineDash([]);
+    }
     if (p >= 0 && !ranged) {                                                       // slash trail
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(0, 0);
       ctx.arc(0, 0, 58, (b.aim || 0) - 1.1 * dir, ang, dir < 0); ctx.closePath(); ctx.fill();

@@ -64,9 +64,12 @@
     rod:    { reach: 52,  v: 15,   fwd: 0.9,  up: -0.4,  aimW: 0.3,  cd: 100, dip: 55 }      // the ball dips steeply behind the net
   };
   const cdMax = style => (kindOf(style) === 'ranged' ? RANGED[weaponOf(style)].cd : MELEE[weaponOf(style)].cd);
-  /* Direction of a ranged shot: forward and a bit upward from the ground; in the air it follows the jump (rising: up, falling: down). */
+  /* Direction of a ranged shot (no auto-aim): the player HOLDS the special key and the aim sweeps up and down; releasing fires.
+   * A quick tap fires forward and a little upward. aimHold = frames the key has been held. */
+  const AIM_PERIOD = 80;
+  function aimAt(hold) { return -0.3 - 0.6 * Math.sin(2 * Math.PI * hold / AIM_PERIOD); }       // -0.9 (steep up) ... +0.3 (down)
   function shotAngle(b) {
-    const a = b.onGround ? -0.32 : Math.max(-0.25, Math.min(0.35, b.vy * 0.03));
+    const a = aimAt(b.aimHold || 0);
     return b.team === 0 ? a : Math.PI - a;
   }
 
@@ -114,7 +117,8 @@
   }
 
   function stepBallFree(ball, rng) {
-    ball.vy += C.BALL_G;
+    ball.vy += C.BALL_G + (ball.dip > 0 ? C.DIP_G : 0);
+    if (ball.dip > 0) ball.dip--;
     ball.x += ball.vx; ball.y += ball.vy;
     const r = C.BALL_R;
     if (ball.x < r) { ball.x = r; ball.vx = Math.abs(ball.vx) * 0.85; }
@@ -138,13 +142,13 @@
       this.prevSpecial = false;
       this.touchCd = 0;
       this.fight = false;            // Volley Fight: has a weapon (melee or ranged, see kindOf)
-      this.swing = 0; this.cd = 0; this.swung = false;   // weapon swing frames left / cooldown frames left
+      this.swing = 0; this.cd = 0; this.swung = false; this.aimHold = 0;   // weapon swing frames left / cooldown frames left
       this.aim = 0;                  // weapon angle (radians), auto-aimed at the ball
       this.ai = null;
     }
     reset() {
       this.x = this.homeX; this.y = C.GROUND - C.BLOB_R;
-      this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0;
+      this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0; this.aimHold = 0;
     }
     get onGround() { return this.y >= C.GROUND - C.BLOB_R - 0.001; }
   }
@@ -219,13 +223,18 @@
         if (near && b.onGround && rng() < p.jump) inp.jump = true;
       }
 
-      // Volley Fight, ranged weapon (no auto-aim): shoot when the ball is on the line of fire
+      // Volley Fight, ranged weapon: hold the key until the sweeping aim points at the ball, then release
       if (sim.fight && kindOf(b.style) === 'ranged') {
+        const W = RANGED[weaponOf(b.style)];
         if (b.cd === 0 && sim.state === 'play') {
-          const W = RANGED[weaponOf(b.style)], ang = shotAngle(b), dx = (ball.x - b.x) * dir;
-          if (dx > 40 && dx < W.v * W.life * 0.9) {
-            if (Math.abs(ball.y - (b.y - 4 + dx * Math.tan(dir === 1 ? ang : Math.PI - ang))) < 30 && rng() < p.wpn * 2) inp.special = true;
-          }
+          const t = Math.hypot(ball.x - b.x, ball.y - b.y) / W.v;
+          const tx = ball.x + ball.vx * t, ty = ball.y + ball.vy * t;           // lead the ball a little
+          const dx = (tx - b.x) * dir, need = Math.atan2(ty - (b.y - 4), Math.max(dx, 1));
+          const inRange = dx > 40 && dx < W.v * W.life * 0.9;
+          const cur = aimAt(b.aimHold);
+          if (b.aimHold > 0) {                                               // aiming: keep holding until the line is on the ball
+            if (inRange && b.aimHold < AIM_PERIOD && Math.abs(cur - need) > 0.09) inp.special = true;
+          } else if (inRange && need > -0.95 && need < 0.35 && rng() < p.wpn * 1.5) inp.special = true;
         }
       }
       // Volley Fight, melee weapon: swing when the ball is in reach
@@ -300,7 +309,7 @@
 
     /* Predict where the ball arrives at hit height (ignores blobs). */
     predict() {
-      const s = { x: this.ball.x, y: this.ball.y, vx: this.ball.vx, vy: this.ball.vy };
+      const s = { x: this.ball.x, y: this.ball.y, vx: this.ball.vx, vy: this.ball.vy, dip: this.ball.dip || 0 };
       const r = () => 0.5;
       for (let t = 0; t < 400; t++) {
         stepBallFree(s, r);
@@ -466,6 +475,7 @@
         this.shots.push({ x: b.x + Math.cos(a0) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a0) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life, k: W.n > 1 ? 0 : 1, vol: this.volley });
       }
       this.emit('shot', { blob: b.id, heavy: W.n > 1 });
+      b.aimHold = 0;
     }
     /* Bolts: a hit on a ball flying toward the opponents speeds it up, on a ball flying toward the shooter's own side it slows it down. */
     stepShots() {
@@ -502,7 +512,9 @@
       const live = this.state === 'serve' || this.state === 'play';
       const dir = b.team === 0 ? 1 : -1;
       if (kindOf(b.style) === 'ranged') {
-        if (pressed && live && b.cd === 0 && b.swing === 0) this.fire(b);
+        // hold the key = aim (the line sweeps), release = fire
+        if (b.input.special && live && b.cd === 0 && b.swing === 0) b.aimHold++;
+        else if (b.aimHold > 0) { if (live && b.cd === 0 && b.swing === 0) this.fire(b); b.aimHold = 0; }
         return;
       }
       const M = MELEE[weaponOf(b.style)];
@@ -601,7 +613,7 @@
     }
   }
 
-  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, MELEE, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { C, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, aimAt, AIM_PERIOD, MELEE, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);
