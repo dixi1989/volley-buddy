@@ -53,21 +53,23 @@
     transformer: { name: 'Transformer', weapon: 'kick' },
     cloudy: { name: 'Cloudy', weapon: 'bolt' },
     gagari: { name: 'Gagari', weapon: 'hole' },
-    kindi: { name: 'Kindi', weapon: 'bat' }
+    kindi: { name: 'Kindi', weapon: 'bat' },
+    bruiser: { name: 'Bruiser', weapon: 'bouquet' }
   };
   const DEFAULT_FIGURE = 'pixel';
   /* Weapon categories: 'melee' (swing, smashes the ball faster) and 'ranged' (fires a bolt over the net that speeds up / slows down the ball). */
-  const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', kick: 'melee', bat: 'melee', shotgun: 'ranged', revolver: 'ranged', pickle: 'ranged', bolt: 'ranged', hole: 'ranged' };
+  const WEAPON_KIND = { katana: 'melee', kebabknife: 'melee', sword: 'melee', lasso: 'melee', rod: 'melee', kick: 'melee', bat: 'melee', shotgun: 'ranged', revolver: 'ranged', pickle: 'ranged', bolt: 'ranged', hole: 'ranged', bouquet: 'ranged' };
   /* Ranged weapons (no auto-aim): n projectiles per shot spread by `spread` rad, speed v px/frame, flight time `life` frames, cooldown `cd` frames. */
   const RANGED = {
     shotgun:  { n: 3, spread: 0.14, v: 15, life: 50, cd: 76 },      // 3 pellets, short range, slow to reload
     revolver: { n: 1, spread: 0,    v: 18, life: 90, cd: 32 },       // one bullet, quick to fire again
     /* effect: 'speed' (default: faster / slower ball), 'deflect' (the ball is bent toward the shot's direction), 'hole' (the ball vanishes
-     * and drops from the sky on the opponents' side). k = look of the projectile (0 pellet, 1 bullet, 2 pickle slice, 3 lightning, 4 black hole).
+     * and drops from the sky on the opponents' side). k = look of the projectile (0 pellet, 1 bullet, 2 pickle slice, 3 lightning, 4 black hole, 5 rainbow ray).
      * ring: fires n shots in all directions at once on a key press (no aiming). */
     pickle:   { n: 1, spread: 0,    v: 13, life: 85, cd: 90, k: 2, r: 13, effect: 'deflect' },          // McRib: gherkin slices
     bolt:     { n: 8, spread: 0,    v: 11, life: 34, cd: 84, k: 3, effect: 'deflect', ring: true },   // Cloudy: lightning in every direction
-    hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' }            // Gagari: black hole cannon
+    hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' },           // Gagari: black hole cannon
+    bouquet:  { n: 3, spread: 0.2,  v: 14, life: 64, cd: 80, k: 5, r: 10 }                      // Bruiser: pink bouquet, fan of 3 rainbow rays (faster / slower ball like the other bolts)
   };
   const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
   const kindOf = style => WEAPON_KIND[weaponOf(style)];

@@ -211,6 +211,8 @@ canvas.prev{width:72px;height:72px;flex:none;image-rendering:pixelated;backgroun
 /* v37: einspaltige Felder füllen das (breitere) Panel */
 .fields.cols.single,.fields.single{max-width:none;margin:4px 0}
 
+/* v59: 13 heroes = 7 + 6 tiles, still two rows */
+.tiles{grid-template-columns:repeat(7,minmax(0,1fr))}
 /* v37: 12 heroes in two rows – compact tiles so the setup screens still fit 800x450 (Steam Deck 1280x800) */
 .tiles{gap:3px}
 .look .tile{padding:2px 1px 3px;gap:1px}

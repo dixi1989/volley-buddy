@@ -80,7 +80,8 @@
     kick: ['Kick', 'Kicks the ball from below: it flies up and forward. Medium reach.'],
     bolt: ['Thunder', 'Lightning bolts fly in all directions at once and bend the ball. No aiming – just press the key.'],
     hole: ['Black hole cannon', 'A hit swallows the ball: it drops from the sky at a random spot on the opponents\' side. Slow recharge.'],
-    bat: ['Baseball bat', 'Fastest, flat smash and a short recharge (like the katana).']
+    bat: ['Baseball bat', 'Fastest, flat smash and a short recharge (like the katana).'],
+    bouquet: ['Rainbow bouquet', 'Fires a fan of 3 rainbow rays: they speed the ball up toward the opponents or slow it down. Slow-ish recharge.']
   };
   const figName = id => FIGURES[id].name;
   const styleOf = v => (FIGURES[v] ? v : VB.DEFAULT_FIGURE);
@@ -464,6 +465,7 @@
       case 'shot':
         if (e.kind === 2) { tone(420, 0.08, 'triangle', 0.1, 300); tone(200, 0.1, 'square', 0.05, -100, 0.02); }
         else if (e.kind === 3) { tone(1400, 0.2, 'sawtooth', 0.08, -1100); tone(90, 0.25, 'square', 0.1, -50); tone(2200, 0.12, 'square', 0.05, -1800, 0.04); }
+        else if (e.kind === 5) { tone(660, 0.1, 'triangle', 0.1, 500); tone(990, 0.1, 'sine', 0.07, 600, 0.04); tone(1480, 0.12, 'triangle', 0.05, 500, 0.08); }
         else if (e.kind === 4) { tone(300, 0.4, 'sine', 0.14, -240); tone(70, 0.45, 'triangle', 0.14, 40); }
         else if (e.heavy) { tone(110, 0.22, 'sawtooth', 0.2, -80); tone(700, 0.12, 'square', 0.08, -600); tone(70, 0.3, 'triangle', 0.16, -30, 0.05); }
         else { tone(1800, 0.09, 'square', 0.09, -1400); tone(260, 0.1, 'sawtooth', 0.06, -150, 0.02); }

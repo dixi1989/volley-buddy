@@ -35,7 +35,7 @@
   }
 
   /* ------------------------------------------------------ Pixel people */
-  /* Blocky pixel figures on a 2 px grid (so they stay crisp in the low-res pixel renderer): the Pixel Hero, a Ninja, Santa and the neutral figures McRib, Transformer, Cloudy, Gagari and Kindi.
+  /* Blocky pixel figures on a 2 px grid (so they stay crisp in the low-res pixel renderer): the Pixel Hero, a Ninja, Santa and the neutral figures McRib, Transformer, Cloudy, Gagari and Kindi, and the bald bruiser (Bruiser).
    * The player's colour is always the swimwear. All of them share the body; the variants differ in head gear, face and extras. */
   const OUT = '#2a1740';
   const SKIN = ['#d99a63', '#b57545'];
@@ -53,7 +53,7 @@
   function drawPerson(ctx, b, ball, t) {
     const R = C.BLOB_R, j = jstate(b), v = b.style;
     const ninja = v === 'ninja', santa = v === 'santa', adv = v === 'adventurer', robot = v === 'cyborg', cow = v === 'cowboy', kebab = v === 'kebabi';
-    const mcrib = v === 'mcrib', car = v === 'transformer', cloudy = v === 'cloudy', gagari = v === 'gagari', kindi = v === 'kindi';
+    const mcrib = v === 'mcrib', car = v === 'transformer', cloudy = v === 'cloudy', gagari = v === 'gagari', kindi = v === 'kindi', brute = v === 'bruiser';
     const custom = kebab || mcrib || car || cloudy || gagari || kindi;      // own body and face instead of the shared torso / head
     const hgt = Math.max(0, (C.GROUND - R) - b.y);
     ctx.fillStyle = `rgba(60,40,10,${0.26 - Math.min(0.16, hgt / 800)})`;
@@ -83,9 +83,11 @@
     // legs
     const lift = s => (air ? 2 : (moving && ph === s ? 2 : 0));
     const legTop = gagari ? 22 : 16;
-    if (!cloudy) [[-11, 0], [1, 1]].forEach(([x, s]) => {
+    const LG = brute ? [[-14, 0], [2, 1]] : [[-11, 0], [1, 1]], LW = brute ? 12 : 10;      // Bruiser: thicker legs
+    if (!cloudy) LG.forEach(([x, s]) => {
       const h = (30 - legTop) - cy - lift(s);
-      part(x, legTop + cy, 10, h, sk[0], true); part(x + 8, legTop + cy, 2, h, sk[1]);
+      part(x, legTop + cy, LW, h, sk[0], true); part(x + LW - 2, legTop + cy, 2, h, sk[1]);
+      if (brute) { part(x - 1, 30 - lift(s) - 6, LW + 2, 6, '#2b2236', true); part(x - 1, 30 - lift(s) - 6, LW + 2, 2, col, false); }   // heavy boots with a stripe in the player's colour
       if (kebab || kindi || car) {                                                              // white sneakers (Transformer: with a stripe in the car's colour)
         part(x - 1, 30 - lift(s) - 4, 12, 4, '#f6f6fa', true); part(x - 1, 30 - lift(s) - 2, 12, 2, '#c9cfdc', false);
         if (car) part(x - 1, 30 - lift(s) - 4, 12, 2, col, false);
@@ -170,6 +172,12 @@
       part(-14, 10 + cy, 28, 2, light, false); part(-14, 14 + cy, 28, 2, '#ffffff', false);
       part(-13, 18 + cy, 12, 4, col, false); part(1, 18 + cy, 12, 4, col, false); part(-13, 20 + cy, 12, 2, dark, false); part(1, 20 + cy, 12, 2, dark, false);
     }
+    else if (brute) {
+      // wide, muscular chest: shoulders wider than the head, pecs, abs and a thick neck
+      part(-18, -4 + cy, 36, 18, sk[0], true); part(16, -4 + cy, 2, 18, sk[1], false);
+      part(-18, 4 + cy, 16, 2, sk[1], false); part(2, 4 + cy, 16, 2, sk[1], false); part(-2, -2 + cy, 4, 10, sk[1], false);
+      part(-10, -2 + cy, 6, 2, '#f0bd8a', false); part(4, -2 + cy, 6, 2, '#f0bd8a', false); part(-2, 8 + cy, 4, 2, sk[1], false);
+    }
     else if (santa) { part(-14, 0 + cy, 28, 16, sk[0], true); part(12, 0 + cy, 2, 16, sk[1]); }
     else { part(-12, -2 + cy, 24, 18, sk[0], true); part(10, -2 + cy, 2, 18, sk[1]); }
     if (ninja) {
@@ -186,10 +194,11 @@
         }
       });
     } else if (!cloudy && !car) {
-      const aw = ninja ? 10 : 8;
-      [[ninja ? -22 : kebab ? -18 : mcrib ? -24 : -20, 0], [kebab ? 10 : mcrib ? 16 : 12, 1]].forEach(([x, s]) => {
+      const aw = brute ? 12 : ninja ? 10 : 8, ah = brute ? 20 : 18;
+      [[brute ? -30 : ninja ? -22 : kebab ? -18 : mcrib ? -24 : -20, 0], [brute ? 18 : kebab ? 10 : mcrib ? 16 : 12, 1]].forEach(([x, s]) => {
         const off = air ? -14 : (moving ? ((s + ph) % 2 ? 2 : -2) : 0), y = -2 + cy + off;
-        part(x, y, aw, 18, sk[0], true); part(x + (s ? aw - 2 : 0), y, 2, 18, sk[1]);
+        part(x, y, aw, ah, sk[0], true); part(x + (s ? aw - 2 : 0), y, 2, ah, sk[1]);
+        if (brute) { part(x + 4, y + 2, 4, 4, '#f0bd8a', false); part(x, y + 16, aw, 4, col, false); part(x, y + 16, aw, 2, light, false); }   // bicep highlight + wristband
         if (ninja) { part(x, y + 10, aw, 8, NH, false); part(x, y + 8, aw, 2, col, false); }
       });
     }
@@ -218,6 +227,16 @@
       eye(-8, ey); eye(4, ey);
       part(-4, -10 + cy, 8, 2, '#2a1008', false); part(-6, -12 + cy, 2, 2, '#2a1008', false); part(4, -12 + cy, 2, 2, '#2a1008', false);
       part(-10, -12 + cy, 4, 2, '#d06a5a', false); part(6, -12 + cy, 4, 2, '#d06a5a', false);
+    } else if (brute) {
+      // bald head with a shine, square jaw, ears, heavy frowning brows, stubble and a gold tooth
+      part(-14, -12 + cy, 28, 10, sk[0], true); part(12, -12 + cy, 2, 10, sk[1], false);
+      part(-16, -20 + cy, 4, 8, sk[0], true); part(12, -20 + cy, 4, 8, sk[0], true);
+      part(-8, -26 + cy, 12, 2, '#f6cfa0', false); part(-8, -24 + cy, 4, 2, '#fbe3c4', false); part(-12, -24 + cy, 24, 2, '#e3a874', false);
+      eye(-8, ey); eye(4, ey);
+      part(-12, -20 + cy, 6, 2, '#2e1a0d', false); part(-8, -18 + cy, 6, 2, '#2e1a0d', false); part(6, -20 + cy, 6, 2, '#2e1a0d', false); part(2, -18 + cy, 6, 2, '#2e1a0d', false);
+      part(-2, -10 + cy, 4, 4, sk[1], false);
+      [-12, -8, -4, 0, 4, 8].forEach(x => part(x, -6 + cy, 2, 2, '#7a4f2a', false));
+      part(-6, -4 + cy, 12, 2, '#5a1f1f', false); part(2, -4 + cy, 2, 2, '#ffd23f', false);
     } else if (cloudy) {
       // (face is part of the cloud above)
     } else if (ninja) {
@@ -253,7 +272,10 @@
       part(-2, -10 + cy, 4, 2, santa ? '#e0766a' : sk[1], false); part(-4, -6 + cy, 8, 2, '#8a3a3a', false);
     }
     // swimwear in the player's colour (the new neutral figures show their colour on their own clothing / paint instead)
-    if (!(mcrib || car || cloudy || gagari || kindi)) {
+    if (brute) {
+      part(-18, 8 + cy, 36, 2, dark, false); part(-18, 10 + cy, 36, 6, col, false); part(-18, 12 + cy, 36, 2, light, false);
+      [-14, 2].forEach(x => { part(x, 16 + cy, 12, 6, col, false); part(x, 20 + cy, 12, 2, dark, false); });
+    } else if (!(mcrib || car || cloudy || gagari || kindi)) {
       part(-12, 8 + cy, 24, 2, dark, false); part(-12, 10 + cy, 24, 6, col, false); part(-12, 12 + cy, 24, 2, light, false);
       [-11, 1].forEach(x => { part(x, 16 + cy, 10, 6, col, false); part(x, 20 + cy, 10, 2, dark, false); });
       if (santa) { part(-14, 8 + cy, 28, 2, dark, false); part(-14, 10 + cy, 28, 4, col, false); }
@@ -265,9 +287,9 @@
     }
     // Alman Mode: white socks in sandals
     if (b.alman && !cloudy) {
-      [[-11, 0], [1, 1]].forEach(([x, s]) => {
+      LG.forEach(([x, s]) => {
         const bot = 30 - lift(s);
-        part(x, bot - 8, 10, 6, '#ffffff', false); part(x, bot - 6, 10, 2, '#7b4a22', false); part(x - 2, bot - 2, 14, 2, '#7b4a22', false);
+        part(x, bot - 8, LW, 6, '#ffffff', false); part(x, bot - 6, LW, 2, '#7b4a22', false); part(x - 2, bot - 2, LW + 4, 2, '#7b4a22', false);
       });
     }
     // Aura+10: sunglasses
@@ -354,6 +376,14 @@
       px(ctx, 30, -7, 4, 14, '#3a7a26');
       if (ext > 0) { px(ctx, 34, -6, 8, 12, '#d6f5a0'); px(ctx, 42, -3, 4, 6, '#a6e060'); }
     },
+    bouquet(ctx, t, ext) {   // Bruiser's weapon: a big pink bouquet in wrapping paper, with a rainbow burst at the front when it fires
+      px(ctx, -8, -2, 12, 4, '#3a7a26'); px(ctx, 4, -6, 8, 12, '#ffd1e8'); px(ctx, 4, 2, 8, 4, '#f0a6cc'); px(ctx, 6, -2, 4, 4, '#d7263d');
+      px(ctx, 12, -12, 28, 24, '#ff4fa3'); px(ctx, 12, 4, 28, 8, '#d92b86'); px(ctx, 14, -12, 10, 4, '#ff8ccb');
+      [[14, -10], [26, -12], [32, -4], [16, 0], [26, 4], [34, 6]].forEach(([x, y], i) => { px(ctx, x, y, 6, 6, i % 2 ? '#ff8ccb' : '#ff2f93'); px(ctx, x + 2, y + 2, 2, 2, '#ffe94a'); });
+      px(ctx, 10, -14, 4, 4, '#58c24a'); px(ctx, 10, 10, 4, 4, '#58c24a'); px(ctx, 36, -14, 4, 4, '#58c24a');
+      const tw = Math.floor(t * 6) % 3; px(ctx, [18, 30, 22][tw], [-16, -14, 14][tw], 4, 4, '#ffffff');       // twinkle
+      if (ext > 0) ['#ff3b3b', '#ff9a3c', '#ffe94a', '#58e05a', '#3fa7ff', '#a77bff'].forEach((c, i) => px(ctx, 40, -10 + i * 3, 12, 3, c));
+    },
     bolt() {},         // Cloudy has no handheld weapon: the lightning comes out of the cloud itself (see drawPerson)
     hole(ctx, t, ext) {     // black hole cannon: wide dark barrel with a swirling purple mouth
       px(ctx, -10, -4, 16, 10, '#3a3f55'); px(ctx, -6, -6, 6, 4, '#5b6578'); px(ctx, 6, -7, 24, 14, '#1c2033'); px(ctx, 6, -7, 24, 3, '#2d3350');
@@ -392,7 +422,7 @@
     const rest = rev === -1 ? (dir === 1 ? 0.9 : Math.PI - 0.9) : (dir === 1 ? -1.15 : Math.PI + 1.15);   // a leg rests down and forward, a blade up and forward
     const idle = ranged ? (b.aim || VB.shotAngle(b)) : rest;                       // a ranged weapon always shows its line of fire
     const ang = ranged ? (b.swing > 0 ? (b.aim || 0) : idle) : (p < 0 ? idle : (b.aim || 0) + (p - 0.5) * 2.2 * dir * rev);
-    ctx.save(); if (kind === 'kick') ctx.translate(dir * 6, 18 + cy); else ctx.translate(dir * 14, 4 + cy);
+    ctx.save(); if (kind === 'kick') ctx.translate(dir * 6, 18 + cy); else ctx.translate(dir * (kind === 'bouquet' ? 20 : 14), 4 + cy);
     if (p >= 0 && !ranged) {                                                       // slash trail
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.moveTo(0, 0);
       ctx.arc(0, 0, 58, (b.aim || 0) - 1.1 * dir * rev, ang, dir * rev < 0); ctx.closePath(); ctx.fill();
@@ -417,6 +447,13 @@
         ctx.fillStyle = 'rgba(255,240,100,0.3)'; ctx.fillRect(-12, -6, 24, 12);
         ctx.fillStyle = '#ffe94a'; ctx.fillRect(-10, -1, 6, 4); ctx.fillRect(-6, -4, 6, 4); ctx.fillRect(-2, -1, 6, 4); ctx.fillRect(2, -3, 8, 4);
         ctx.fillStyle = '#ffffff'; ctx.fillRect(-4, -3, 2, 2); ctx.fillRect(4, -2, 4, 2);
+      } else if (s.k === 5) {   // rainbow ray: six wavy colour stripes with a sparkling tip
+        const C6 = ['#ff3b3b', '#ff9a3c', '#ffe94a', '#58e05a', '#3fa7ff', '#a77bff'];
+        for (let sg = 0; sg < 5; sg++) {
+          const wv = Math.round(sin(t * 22 - sg * 1.3)) * 2;
+          C6.forEach((c, i) => { ctx.globalAlpha = 1 - sg * 0.17; ctx.fillStyle = c; ctx.fillRect(-26 + sg * 6, -9 + i * 3 + wv, 6, 3); });
+        }
+        ctx.globalAlpha = 1; ctx.fillStyle = '#ffffff'; ctx.fillRect(2, -3, 6, 6); ctx.fillRect(8, -1, 2, 2);
       } else if (s.k === 4) {   // black hole: dark core with a spinning purple ring
         ctx.rotate(-t * 8);
         ctx.fillStyle = '#07000f'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, TAU); ctx.fill();
