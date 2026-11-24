@@ -3,8 +3,13 @@
  * (und per Klick auf die Version). Regeln: nur die WICHTIGSTEN Änderungen, keine Test-Hinweise / To-dos, keine Kleinigkeiten;
  * Versionen ohne wichtige Änderung bekommen keinen Eintrag; es werden die letzten 3 Einträge angezeigt (neueste zuerst). */
 window.BUILD = {
-  version: 'vb-v59', time: '24.11.2026 15:30',
+  version: 'vb-v60', time: '24.11.2026 16:00',
   log: [
+    { v: 'vb-v60', items: [
+      'Siegerpose: Der Gewinner hüpft mit erhobenen Armen im Konfettiregen, dazu gibt es einen Siegerspruch pro Held im Endbildschirm.',
+      'Jede Nahkampfwaffe hat jetzt eigene Schwung- und Treffer-Sounds.',
+      'Neue Musik-Einstellung „Stage“: Mond, Unterwasser, Dönerbude und Schwarzes-Loch-Arena spielen ihr eigenes Thema (Strand bleibt Miami). Die Musik-Taste schaltet jetzt Miami → Techno → Stage → Aus.'
+    ] },
     { v: 'vb-v59', items: [
       'Neuer Held „Bruiser“: kahlköpfig und bullig, seine Waffe ist ein pinker Blumenstrauß, der einen Fächer aus drei Regenbogenstrahlen verschießt (Fernkampf, beschleunigt oder bremst den Ball).'
     ] },

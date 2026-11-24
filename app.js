@@ -186,6 +186,7 @@
     $('touch').hidden = !(touchMode && p === 'play');
     if (p === 'play') { const tl = document.querySelector('#touch [data-k="TouchSpecial"] small'); if (tl) tl.textContent = game && game.fight ? 'WEAPON' : 'POWER-UP'; }
     if (p !== 'play') releaseTouchKeys();
+    applyTrack();
   }
   /* ---- menu input, independent of the device ----
    * Every menu action goes through uiAction('up' | 'down' | 'left' | 'right' | 'ok' | 'back'). The keyboard is wired below; a gamepad
@@ -326,7 +327,7 @@
     { root: 65.41, n: [261.63, 329.63, 392.0] },   // C
     { root: 49.0, n: [196.0, 246.94, 293.66] }     // G
   ];
-  const music = { bus: null, delay: null, timer: null, next: 0, step: 0, noise: null };
+  const music = { bus: null, delay: null, timer: null, next: 0, step: 0, noise: null, cur: settings.track === 'techno' ? 'techno' : 'miami' };
   const musicOn = () => !settings.muted && settings.music;
   function musicGain() {
     if (!music.bus || !ac) return;
@@ -354,8 +355,13 @@
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(music.bus); s.start(t); s.stop(t + dur + 0.02);
   }
+  function mKick(a, t, vol, f0, f1, dur) {
+    const k = a.createOscillator(), g = a.createGain(); k.type = 'sine'; k.frequency.setValueAtTime(f0, t); k.frequency.exponentialRampToValueAtTime(f1, t + 0.12);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.2)); k.connect(g); g.connect(music.bus); k.start(t); k.stop(t + (dur || 0.2) + 0.02);
+  }
   function musicStep(a, step, t) {
-    if (settings.track === 'techno') { technoStep(a, step, t); return; }
+    if (music.cur === 'techno') { technoStep(a, step, t); return; }
+    const theme = themeFor(music.cur); if (theme) { theme(a, step, t); return; }
     const bar = Math.floor(step / 16), s = step % 16, ch = CHORDS[Math.floor(step / 32)];
     // drums: soft kick on every beat, clap on 2 and 4, open hat off-beat, ghost hats
     if (s % 4 === 0) { const k = a.createOscillator(), g = a.createGain(); k.type = 'sine'; k.frequency.setValueAtTime(130, t); k.frequency.exponentialRampToValueAtTime(45, t + 0.12); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); k.connect(g); g.connect(music.bus); k.start(t); k.stop(t + 0.22); }
@@ -403,6 +409,61 @@
       if (s >= 8) mNoise(a, t, 0.08, 0.05 + (s - 8) * 0.025, 0, 2200);
       if (s % 2 === 0) mNoise(a, t, M_STEP * 2, 0.02 + s * 0.006, 4000 + s * 450);
     }
+  }
+  /* Stage themes (track "Stage": each stage plays its own music during a match; the Beach keeps the Miami groove) */
+  const MOON = [440, 523.25, 587.33, 659.25, 783.99, 880];
+  function moonStep(a, step, t) {          // Moon Station: slow, dreamy, sparkling pentatonic blips over a deep sine pad
+    const bar = Math.floor(step / 16) % 8, s = step % 16, ch = CHORDS[Math.floor(step / 32) % 4];
+    if (s === 0 && bar % 2 === 0) { ch.n.forEach(f => mTone(a, t, f, M_STEP * 31, 'sine', 0.07, { attack: 1.2, hold: 0.9, echo: true })); mTone(a, t, ch.root, M_STEP * 31, 'sine', 0.16, { attack: 0.6, hold: 0.9 }); }
+    if (bar >= 2 && (s === 0 || s === 8)) mKick(a, t, 0.28, 100, 42, 0.3);
+    if (s % 3 === 0) mTone(a, t, MOON[(step * 5 + bar * 2) % 6], M_STEP * 3, 'sine', 0.08, { echo: true, hold: 0.15 });
+    if (s === 10 && bar % 2 === 1) mTone(a, t, 1760, M_STEP * 1.5, 'square', 0.02, { lp: 3000, echo: true });
+    if (s % 4 === 2) mNoise(a, t, 0.04, 0.02, 9000);
+  }
+  function bubble(a, t, f) {
+    const o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.9, t + 0.09);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(g); g.connect(music.bus); g.connect(music.delay); o.start(t); o.stop(t + 0.14);
+  }
+  function waterStep(a, step, t) {         // Underwater: muffled heartbeat kick, wave swells, bubbles over a murky pad
+    const bar = Math.floor(step / 16) % 8, s = step % 16, ch = CHORDS[Math.floor(step / 32) % 4];
+    if (s === 0 && bar % 2 === 0) { ch.n.forEach(f => mTone(a, t, f / 2, M_STEP * 31, 'triangle', 0.06, { lp: 500, attack: 1.4, hold: 0.9 })); mNoise(a, t, 1.8, 0.05, 0, 500); }
+    if (s % 8 === 0) mKick(a, t, 0.32, 90, 38, 0.3);
+    if (s % 8 === 0 || s === 6 || s === 14) mTone(a, t, ch.root, M_STEP * 3, 'sine', 0.2, { hold: 0.5 });
+    if ((step * 7) % 5 < 2 && s % 2 === 1) bubble(a, t, 500 + ((step * 53) % 9) * 120);
+    if (s % 4 === 2) mNoise(a, t, 0.05, 0.015, 3000);
+  }
+  const HIJAZ = [440, 0, 466.16, 0, 554.37, 0, 587.33, 554.37, 466.16, 0, 440, 0, 0, 0, 415.3, 0, 440, 0, 466.16, 0, 554.37, 659.25, 0, 698.46, 659.25, 587.33, 554.37, 466.16, 440, 0, 0, 0];
+  function donerStep(a, step, t) {         // Doner Shop: darbuka groove and a zurna-like lead in the hijaz scale
+    const bar = Math.floor(step / 16) % 8, s = step % 16;
+    if ([0, 6, 10].includes(s)) mKick(a, t, 0.4, 150, 80, 0.16);                               // dum
+    if ([4, 12, 14].includes(s)) { mNoise(a, t, 0.06, 0.12, 0, 3200); mTone(a, t, 900, 0.05, 'triangle', 0.05, { hold: 0.2 }); }   // tek
+    if ([2, 8, 15].includes(s)) mNoise(a, t, 0.03, 0.05, 6500);                                // ka
+    if (s === 0 && bar % 2 === 0) mTone(a, t, 110, M_STEP * 31, 'sawtooth', 0.1, { lp: 500, attack: 0.5, hold: 0.9 });   // drone on A
+    if (s % 4 === 0) mTone(a, t, 55, M_STEP * 2.5, 'sawtooth', 0.2, { lp: 380, lpEnd: 150, q: 3 });
+    const f = HIJAZ[step % 32];
+    if (f) [-12, 12].forEach(d => mTone(a, t, f, M_STEP * 1.8, 'sawtooth', 0.05, { detune: d, lp: 2600, lpEnd: 1200, echo: true, hold: 0.3 }));
+  }
+  function holeStep(a, step, t) {          // Black Hole Arena: dark drone, tritone arpeggio and rising swells
+    const bar = Math.floor(step / 16) % 8, s = step % 16;
+    if (s === 0 && bar % 2 === 0) { mTone(a, t, 43.65, M_STEP * 31, 'sawtooth', 0.2, { lp: 220, lpEnd: 90, attack: 1, hold: 0.9 }); mTone(a, t, 61.74, M_STEP * 31, 'sawtooth', 0.1, { lp: 200, attack: 1.4, hold: 0.9 }); }
+    if (s % 4 === 0) mKick(a, t, 0.35, 120, 40, 0.22);
+    if (s === 8 && bar % 2 === 0) mKick(a, t, 0.3, 110, 60, 0.25);
+    if (s % 4 === 2) mTone(a, t, [293.66, 277.18, 233.08, 207.65][(step >> 2) % 4], M_STEP * 3, 'triangle', 0.09, { echo: true, hold: 0.2 });
+    if (bar === 7 && s % 2 === 0) mNoise(a, t, M_STEP * 2, 0.02 + s * 0.004, 4000 + s * 300);
+    if (bar === 0 && s === 0) mKick(a, t, 0.55, 80, 30, 0.6);
+  }
+  function themeFor(id) { return { moon: moonStep, water: waterStep, doner: donerStep, hole: holeStep }[id] || null; }
+  const BPM_OF = id => TRACK_BPM[id] || { moon: 90, water: 84, doner: 124, hole: 100 }[id] || 112;
+  function activeTrack() {
+    if (settings.track === 'techno') return 'techno';
+    if (settings.track === 'stage' && (phase === 'play' || phase === 'pause' || phase === 'over') && game && themeFor(game.stageId)) return game.stageId;
+    return 'miami';
+  }
+  function applyTrack() {                  // switches the music when the track setting or the stage changes
+    const nm = activeTrack(); if (nm === music.cur) return;
+    music.cur = nm; M_STEP = 60 / BPM_OF(nm) / 4;
+    if (music.delay) music.delay.delayTime.value = M_STEP * 3;
+    music.step = 0; if (ac) music.next = ac.currentTime + 0.1;
   }
   function musicTick() {
     if (!ac) return;
@@ -459,6 +520,34 @@
     o.start(t0); o.stop(t0 + dur + 0.03);
   }
   const fxs = [];                 // visual effects of events (black hole), see Scene.drawFx
+  /* Winner quotes (shown in the end-of-match panel) */
+  const WIN_QUOTES = {
+    pixel: 'Level up! Next stage unlocked.', cyborg: 'Target eliminated.', cowboy: 'Yeehaw, partner – that was a clean shot!',
+    ninja: 'Silent. Deadly. A little sandy.', kebabi: 'Extra sauce for the win!', adventurer: 'Another treasure for the collection!',
+    santa: 'Ho ho ho – somebody was naughty!', mcrib: 'Now that is a juicy victory!', transformer: 'Engine at full power – roll out!',
+    cloudy: 'The storm has passed – and I won!', gagari: 'Mission accomplished. Out of this world!', kindi: 'Sweet, sweet victory!',
+    bruiser: 'Power and petals, baby!'
+  };
+  /* Weapon sounds: swing (whoosh) and hit on the ball, one per melee weapon */
+  const SWING_SND = {
+    sword: () => tone(700, 0.14, 'sawtooth', 0.05, -500),
+    katana: () => { tone(1500, 0.1, 'sawtooth', 0.05, -1200); tone(2400, 0.05, 'triangle', 0.03, -1500, 0.02); },
+    kebabknife: () => { tone(1200, 0.09, 'sawtooth', 0.05, -900); tone(300, 0.07, 'square', 0.03, -200, 0.03); },
+    lasso: () => { tone(220, 0.5, 'sine', 0.06, 260); tone(330, 0.5, 'triangle', 0.03, -120, 0.1); },
+    rod: () => { tone(1800, 0.08, 'square', 0.05, -1500); tone(900, 0.06, 'sawtooth', 0.04, -700, 0.05); },
+    kick: () => tone(500, 0.12, 'triangle', 0.05, -380),
+    bat: () => tone(420, 0.12, 'sawtooth', 0.05, -260)
+  };
+  const HIT_SND = {
+    sword: () => { tone(1800, 0.18, 'triangle', 0.09, -200); tone(2700, 0.14, 'sine', 0.05, -100, 0.01); tone(140, 0.1, 'square', 0.1, -60); },
+    katana: () => { tone(2600, 0.12, 'triangle', 0.08, -600); tone(180, 0.08, 'square', 0.1, -100); },
+    kebabknife: () => { tone(150, 0.1, 'square', 0.14, -80); tone(2200, 0.08, 'triangle', 0.06, -500, 0.01); tone(90, 0.12, 'sine', 0.14, -30, 0.02); },
+    lasso: () => { tone(260, 0.22, 'sine', 0.14, 300); tone(520, 0.2, 'triangle', 0.07, 200, 0.03); },
+    rod: () => { tone(2000, 0.05, 'square', 0.12, -1700); tone(700, 0.1, 'sawtooth', 0.08, -500, 0.02); },
+    kick: () => { tone(110, 0.2, 'sine', 0.22, -70); tone(60, 0.18, 'triangle', 0.2, -20); tone(900, 0.05, 'square', 0.05, -600); },
+    bat: () => { tone(900, 0.04, 'square', 0.16, -300); tone(160, 0.14, 'triangle', 0.2, -90); tone(1800, 0.06, 'sawtooth', 0.05, -1200, 0.005); }
+  };
+  const weaponOfBlob = id => { const b = game && game.blobs[id]; return b && FIGURES[b.style] ? FIGURES[b.style].weapon : null; };
   function playEvent(e) {
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
@@ -473,8 +562,8 @@
       case 'hole': if (e.arrive) { tone(120, 0.35, 'sine', 0.14, 700); tone(900, 0.25, 'triangle', 0.06, 300, 0.1); } else { tone(900, 0.35, 'sine', 0.14, -800); tone(200, 0.3, 'triangle', 0.08, -100, 0.05); }
         fxs.push({ x: e.x0, y: e.y0, arrive: !!e.arrive, t0: performance.now() / 1000 }); break;
       case 'shotHit': if (e.fx === 'deflect') { tone(300, 0.14, 'triangle', 0.14, 500); tone(800, 0.1, 'square', 0.06, -300, 0.03); } else if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
-      case 'swing': tone(900, 0.12, 'sawtooth', 0.04, -700); break;
-      case 'weapon': tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); break;
+      case 'swing': { const f = SWING_SND[weaponOfBlob(e.blob)]; if (f) f(); else tone(900, 0.12, 'sawtooth', 0.04, -700); break; }
+      case 'weapon': { const f = HIT_SND[weaponOfBlob(e.blob)]; if (f) f(); else { tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); } break; }
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
       case 'flip': tone(330, 0.16, 'triangle', 0.06, 420); break;
       case 'net': tone(320, 0.06, 'triangle', 0.1, -90); break;
@@ -659,7 +748,9 @@
   }
 
   /* ------------------------------------------------------------ match end */
+  let overTimer = 0;
   function showOver() {
+    if (overTimer) return;                    // the end panel follows after a short victory pose
     const w = game.winner, s = game.score;
     const mult = LEVELS[game.level].mult;
     let title, info = `${s[0]} : ${s[1]} · longest rally ${game.longestRally}`, rank = '';
@@ -701,8 +792,10 @@
       scores = scores.slice(0, 10); store.set('vb_scores', scores);
       rank = idx >= 0 && idx < 10 ? `New high score! Rank #${idx + 1} · ${score} points` : `${score} points`;
     } else title = 'CPU wins!';
+    const wb = game.blobs.find(b => b.team === w), q = wb && WIN_QUOTES[wb.style];
+    $('overQuote').textContent = q ? '“' + q + '”' : '';
     $('overTitle').textContent = title; $('overInfo').textContent = info; $('overRank').textContent = rank;
-    setPhase('over');
+    overTimer = setTimeout(() => { overTimer = 0; if (phase === 'play' || phase === 'pause') setPhase('over'); }, 1800);
   }
 
   function renderScores() {
@@ -753,15 +846,12 @@
   $('btnControlsBack').onclick = () => setPhase('menu');
   $('btnHowto').onclick = () => setPhase('howto');
   $('btnHowtoBack').onclick = () => setPhase('menu');
-  /* Music button / key N cycles: Miami -> Techno -> Off -> Miami */
-  const musicLabel = () => '🎵 Music: ' + (!settings.music ? 'Off' : settings.track === 'techno' ? 'Techno' : 'Miami');
-  function setTrack(tr) {
-    settings.track = tr; M_STEP = 60 / TRACK_BPM[tr] / 4;
-    if (music.delay) music.delay.delayTime.value = M_STEP * 3;
-    music.step = 0; if (ac) music.next = ac.currentTime + 0.1;
-  }
+  /* Music button / key N cycles: Miami -> Techno -> Stage (own theme per stage) -> Off -> Miami */
+  const musicLabel = () => '🎵 Music: ' + (!settings.music ? 'Off' : settings.track === 'techno' ? 'Techno' : settings.track === 'stage' ? 'Stage' : 'Miami');
+  function setTrack(tr) { settings.track = tr; applyTrack(); }
   function toggleMusic() {
     if (settings.music && settings.track === 'miami') setTrack('techno');
+    else if (settings.music && settings.track === 'techno') setTrack('stage');
     else if (settings.music) settings.music = false;
     else { settings.music = true; setTrack('miami'); }
     saveSettings(); musicGain(); startMusic(); $('btnMusic').textContent = musicLabel();
@@ -926,7 +1016,7 @@
       g._ballRot = g._ballRot || { rot: 0 };
       Scene.drawTowels(ctx, g, t);
       for (const pu of g.items) Scene.drawPowerup(ctx, pu, t);
-      g.blobs.forEach(b => Scene.drawBlob(ctx, b, g.ball, t));
+      g.blobs.forEach(b => { b.cheer = g.state === 'over' && b.team === g.winner; Scene.drawBlob(ctx, b, g.ball, t); });
       if (g.shots && g.shots.length) Scene.drawShots(ctx, g.shots, t);
       if (fxs.length) { const now = performance.now() / 1000; while (fxs.length && now - fxs[0].t0 > 0.6) fxs.shift(); Scene.drawFx(ctx, fxs, now); }
       drawBall(g.ball, g._ballRot);

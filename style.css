@@ -281,3 +281,6 @@ body.haspad #touch{display:none !important}
 .clog ul{margin:0 0 4px 18px;padding:0}
 .clog li{margin:2px 0;color:#e6dcff}
 #changelog .row{justify-content:center}
+
+/* v60: winner's quote in the end-of-match panel */
+.quote{margin:0 0 6px;color:#ffd23f;font-style:italic;min-height:1em}

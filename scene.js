@@ -60,12 +60,14 @@
     ctx.beginPath(); ctx.ellipse(b.x, C.GROUND + 5, R * 0.85 * (1 - hgt / 650), 6, 0, 0, TAU); ctx.fill();
 
     const gx = Math.round(b.x / 2) * 2, gy = Math.round(b.y / 2) * 2;
-    const moving = Math.abs(b.vx) > 0.1, air = !b.onGround;
+    const cheer = !!b.cheer;                                          // winner of the match: hops with raised arms and confetti
+    const moving = Math.abs(b.vx) > 0.1, air = !b.onGround || cheer;
+    const hop = cheer ? -Math.round(Math.abs(sin(t * 7 + b.id)) * 5) * 2 : 0;
     const ph = Math.floor(t * 9 + b.id) % 2;                          // walk cycle
     const cy = j.sq > 0.16 ? 2 : (j.sq < -0.14 ? -2 : 0);              // crouch on landing, stretch on take-off
     const sk = robot ? METAL : kebab ? KEB : mcrib ? BUN : kindi ? CHOC : gagari ? SUIT : SKIN, hr = HAIR, col = b.color;
     const dark = shade(col, -0.38), light = shade(col, 0.4);
-    ctx.save(); ctx.translate(gx, gy);
+    ctx.save(); ctx.translate(gx, gy + hop);
     if (b.aura) {                                                      // Aura+10: glowing ring showing the enlarged hit box
       const ar = R * 1.3, pulse = 0.85 + 0.15 * sin(t * 6);
       ctx.strokeStyle = `rgba(255,236,140,${0.8 * pulse})`; ctx.lineWidth = 3; ctx.setLineDash([6, 6]); ctx.lineDashOffset = -t * 20;
@@ -329,12 +331,15 @@
     ol.forEach(([x, y, w, h]) => ctx.fillRect(x - 2, y - 2, w + 4, h + 4));
     fill.forEach(([x, y, w, h, c]) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); });
     // Cloudy: after firing, lightning crackles around the cloud in every direction
-    if (cloudy && b.fight && b.swing > 0) {
+    if (cloudy && ((b.fight && b.swing > 0) || cheer)) {
       ctx.strokeStyle = '#fff3a0'; ctx.lineWidth = 3; ctx.lineJoin = 'miter';
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * TAU;
         ctx.beginPath(); ctx.moveTo(cos(a) * 28, sin(a) * 28); ctx.lineTo(cos(a + 0.18) * 38, sin(a + 0.18) * 38); ctx.lineTo(cos(a - 0.12) * 46, sin(a - 0.12) * 46); ctx.stroke();
       }
+    }
+    if (cheer) {                                                        // confetti swirling around the winner
+      ['#ffe94a', '#ffffff', col, '#7be08a', '#ff9a3c', '#8fb4ff'].forEach((c, i) => { const a = t * 3 + i * 1.05, rx = 36 + (i % 2) * 8; ctx.fillStyle = c; ctx.fillRect(Math.round(cos(a) * rx / 2) * 2, Math.round((sin(a) * 26 - 14) / 2) * 2, 4, 4); });
     }
     // Alman Mode: bucket hat with little German flags (sits on top of whatever the figure wears)
     if (b.alman) { ctx.save(); ctx.translate(0, (kebab ? -34 : santa ? -34 : adv ? -38 : cow || mcrib ? -46 : robot ? -26 : ninja ? -24 : car || cloudy ? -30 : gagari ? -34 : kindi ? -28 : -22) + cy); bucketHat(ctx, 18, 12, 10, 5); ctx.restore(); }
