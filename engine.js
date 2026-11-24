@@ -71,6 +71,13 @@
     hole:     { n: 1, spread: 0,    v: 9,  life: 110, cd: 110, k: 4, effect: 'hole' },           // Gagari: black hole cannon
     bouquet:  { n: 3, spread: 0.2,  v: 14, life: 64, cd: 80, k: 5, r: 10 }                      // Bruiser: pink bouquet, fan of 3 rainbow rays (faster / slower ball like the other bolts)
   };
+  /* Ranged hits on players (v61): stun = frames without control, kb = horizontal push away from the shooter, pop = little hop, tele = thrown to a random spot
+   * on their own side. A hit also grants a short immunity so nobody can be chain-stunned. */
+  const HIT_FX = {
+    shotgun: { stun: 10, kb: 3 }, revolver: { stun: 18, kb: 5 }, pickle: { stun: 26, kb: 5, pop: 4 },
+    bolt: { stun: 40, kb: 2.5 }, bouquet: { stun: 30, kb: 6, pop: 5 }, hole: { stun: 20, tele: true }
+  };
+  const STUN_IMMUNE = 90;
   const weaponOf = style => (FIGURES[style] || FIGURES[DEFAULT_FIGURE]).weapon;
   const kindOf = style => WEAPON_KIND[weaponOf(style)];
   /* Melee weapons: reach beyond the body, ball speed after the hit, direction (fwd = toward the opponents, up < 0 = upward, aimW = how much the
@@ -191,6 +198,7 @@
       this.prevSpecial = false; this.prevJump = false;
       this.flip = 0; this.flipUsed = false;   // somersault: frames left / already used since the last landing
       this.touchCd = 0;
+      this.stun = 0; this.kb = 0; this.imm = 0;   // stunned by a ranged hit: frames left / push velocity / immunity frames left
       this.fight = false;            // Volley Fight: has a weapon (melee or ranged, see kindOf)
       this.swing = 0; this.cd = 0; this.swung = false; this.aimHold = 0;   // weapon swing frames left / cooldown frames left
       this.aim = 0;                  // weapon angle (radians), auto-aimed at the ball
@@ -199,6 +207,7 @@
     reset() {
       this.x = this.homeX; this.y = C.GROUND - C.BLOB_R;
       this.vx = this.vy = 0; this.touchCd = 0; this.swing = 0; this.aimHold = 0; this.flip = 0; this.flipUsed = false;
+      this.stun = 0; this.kb = 0; this.imm = 0;
     }
     get onGround() { return this.y >= C.GROUND - C.BLOB_R - 0.001; }
   }
@@ -471,7 +480,9 @@
     }
 
     updateBlob(b) {
-      const inp = b.input;
+      if (b.imm > 0) b.imm--;
+      const stunned = b.stun > 0; if (stunned) b.stun--;
+      const inp = stunned ? { left: false, right: false, jump: false, special: false } : b.input;      // a stunned hero cannot act
       if (b.touchCd > 0) b.touchCd--;
       const pressed = inp.special && !b.prevSpecial;
       b.prevSpecial = inp.special;
@@ -481,7 +492,8 @@
       b.alman = this.alman[b.team] > 0;
       b.aura = this.aura[b.team] > 0;
       const slow = b.alman ? C.ALMAN_MULT : 1;
-      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow * (this.stage.speed || 1);
+      b.vx = ((inp.right ? 1 : 0) - (inp.left ? 1 : 0)) * C.BLOB_SPEED * slow * (this.stage.speed || 1) + b.kb;
+      b.kb *= 0.86; if (Math.abs(b.kb) < 0.3) b.kb = 0;
       b.x += b.vx;
       const r = C.BLOB_R;
       if (b.team === 0) b.x = clamp(b.x, r, Math.min(this.netXAt(b.y - r), this.netXAt(b.y + r)) - C.NET_HW - r);
@@ -556,7 +568,7 @@
       for (let i = 0; i < W.n; i++) {
         const a = W.ring ? (i / W.n) * Math.PI * 2 : a0 + (i - (W.n - 1) / 2) * W.spread;
         this.shots.push({ x: b.x + Math.cos(a) * (C.BLOB_R + 8), y: b.y - 4 + Math.sin(a) * (C.BLOB_R + 8), vx: Math.cos(a) * W.v, vy: Math.sin(a) * W.v, team: b.team, life: W.life, r: W.r || C.SHOT_R,
-          k: W.k !== undefined ? W.k : (W.n > 1 ? 0 : 1), fx: W.effect || 'speed', vol: this.volley });
+          k: W.k !== undefined ? W.k : (W.n > 1 ? 0 : 1), fx: W.effect || 'speed', vol: this.volley, w: weaponOf(b.style) });
       }
       this.emit('shot', { blob: b.id, heavy: W.n > 1 && !W.ring, kind: W.k || 0 });
       b.aimHold = 0;
@@ -568,6 +580,7 @@
         const s = this.shots[i];
         s.x += s.vx; s.y += s.vy;
         let dead = --s.life <= 0 || s.x < -20 || s.x > C.W + 20 || s.y < -20 || s.y > C.GROUND + 10 || this.state === 'over';
+        if (!dead && (this.state === 'play' || this.state === 'serve') && this.shotHitsPlayer(s)) { if (s.k !== 0) { this.shots.splice(i, 1); continue; } }
         if (!dead && this.state === 'play' && s.vol !== this.ballVol && Math.hypot(ball.x - s.x, ball.y - s.y) < C.BALL_R + (s.r || C.SHOT_R)) {
           this.ballVol = s.vol;                       // one effect per volley, even if several pellets hit
           const toOpp = s.team === 0 ? 1 : -1;
@@ -598,6 +611,28 @@
         }
         if (dead) this.shots.splice(i, 1);
       }
+    }
+
+    /* A projectile that reaches an opponent stuns and pushes them (HIT_FX); returns true on a hit. One effect per volley and hero. */
+    shotHitsPlayer(s) {
+      const FX = HIT_FX[s.w]; if (!FX) return false;
+      for (const b of this.blobs) {
+        if (b.team === s.team || b.imm > 0 || b.hitVol === s.vol) continue;
+        if (Math.hypot(b.x - s.x, b.y - s.y) >= C.BLOB_R * (b.aura ? C.AURA_MULT : 1) + (s.r || C.SHOT_R)) continue;
+        b.hitVol = s.vol; b.stun = FX.stun; b.imm = FX.stun + STUN_IMMUNE;
+        if (FX.tele) {
+          const nb = this.netBase(), lo = b.team === 0 ? C.BLOB_R + 20 : nb + 80, hi = b.team === 0 ? nb - 80 : C.W - C.BLOB_R - 20;
+          this.emit('hole', { x0: b.x, y0: b.y });
+          b.x = lo + this.rng() * (hi - lo); b.kb = 0;
+          this.emit('hole', { x0: b.x, y0: b.y, arrive: true });
+        } else {
+          b.kb = (Math.sign(s.vx) || (s.team === 0 ? 1 : -1)) * FX.kb;
+          if (FX.pop && b.onGround) b.vy = -FX.pop;
+        }
+        this.emit('stun', { blob: b.id, x: b.x, y: b.y });
+        return true;
+      }
+      return false;
     }
 
     /* Volley Fight: the special key swings the figure's weapon. The weapon auto-aims at the ball; if the ball is in reach during the
@@ -709,7 +744,7 @@
     }
   }
 
-  const api = { C, STAGES, STAGE_IDS, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, aimAt, AIM_PERIOD, MELEE, Sim, Blob, AI, mulberry32, towelRects };
+  const api = { HIT_FX, C, STAGES, STAGE_IDS, LEVELS, POWERUPS, FIGURES, DEFAULT_FIGURE, WEAPON_KIND, RANGED, kindOf, cdMax, shotAngle, aimAt, AIM_PERIOD, MELEE, Sim, Blob, AI, mulberry32, towelRects };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VB = api;
 })(typeof self !== 'undefined' ? self : this);

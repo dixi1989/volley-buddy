@@ -338,6 +338,9 @@
         ctx.beginPath(); ctx.moveTo(cos(a) * 28, sin(a) * 28); ctx.lineTo(cos(a + 0.18) * 38, sin(a + 0.18) * 38); ctx.lineTo(cos(a - 0.12) * 46, sin(a - 0.12) * 46); ctx.stroke();
       }
     }
+    if (b.stun > 0) {                                                   // stunned by a ranged hit: stars circle over the head
+      for (let i = 0; i < 3; i++) { const a = t * 7 + i * 2.1, x = Math.round(cos(a) * 18 / 2) * 2, y = -50 + cy + Math.round(sin(a) * 5 / 2) * 2; ctx.fillStyle = '#ffe94a'; ctx.fillRect(x - 4, y, 10, 2); ctx.fillRect(x, y - 4, 2, 10); ctx.fillStyle = '#fff'; ctx.fillRect(x, y, 2, 2); }
+    }
     if (cheer) {                                                        // confetti swirling around the winner
       ['#ffe94a', '#ffffff', col, '#7be08a', '#ff9a3c', '#8fb4ff'].forEach((c, i) => { const a = t * 3 + i * 1.05, rx = 36 + (i % 2) * 8; ctx.fillStyle = c; ctx.fillRect(Math.round(cos(a) * rx / 2) * 2, Math.round((sin(a) * 26 - 14) / 2) * 2, 4, 4); });
     }

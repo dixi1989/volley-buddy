@@ -3,8 +3,11 @@
  * (und per Klick auf die Version). Regeln: nur die WICHTIGSTEN Änderungen, keine Test-Hinweise / To-dos, keine Kleinigkeiten;
  * Versionen ohne wichtige Änderung bekommen keinen Eintrag; es werden die letzten 3 Einträge angezeigt (neueste zuerst). */
 window.BUILD = {
-  version: 'vb-v60', time: '24.11.2026 16:00',
+  version: 'vb-v61', time: '24.11.2026 16:30',
   log: [
+    { v: 'vb-v61', items: [
+      'Volley Fight: Fernkampf-Schüsse treffen jetzt auch Gegner. Ein Treffer betäubt kurz (Sterne über dem Kopf) und schleudert den Gegner zurück; danach gibt es eine kurze Schutzzeit. Das Schwarze-Loch-Geschütz teleportiert den Getroffenen stattdessen auf der eigenen Seite.'
+    ] },
     { v: 'vb-v60', items: [
       'Siegerpose: Der Gewinner hüpft mit erhobenen Armen im Konfettiregen, dazu gibt es einen Siegerspruch pro Held im Endbildschirm.',
       'Jede Nahkampfwaffe hat jetzt eigene Schwung- und Treffer-Sounds.',

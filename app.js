@@ -123,7 +123,7 @@
     });
     // ability description of the (focused or selected) hero
     const desc = document.createElement('div'); desc.className = 'hdesc';
-    const showDesc = id => { const w = FIGURES[id].weapon, i = WEAPON_INFO[w], ranged = VB.kindOf(id) === 'ranged'; desc.innerHTML = '<b>' + (ranged ? '🔫' : '⚔') + ' ' + i[0] + '</b> <i>' + (ranged ? 'Ranged' : 'Melee') + '</i> – ' + i[1]; };
+    const showDesc = id => { const w = FIGURES[id].weapon, i = WEAPON_INFO[w], ranged = VB.kindOf(id) === 'ranged'; desc.innerHTML = '<b>' + (ranged ? '🔫' : '⚔') + ' ' + i[0] + '</b> <i>' + (ranged ? 'Ranged' : 'Melee') + '</i> – ' + i[1] + (ranged ? ' A hit on an opponent stuns and pushes them back.' : ''); };
     showDesc(me.style);
     [...tiles.children].forEach(t => {
       const id = t.dataset.k.split(':')[2];
@@ -564,6 +564,7 @@
       case 'shotHit': if (e.fx === 'deflect') { tone(300, 0.14, 'triangle', 0.14, 500); tone(800, 0.1, 'square', 0.06, -300, 0.03); } else if (e.boost) { tone(500, 0.16, 'sawtooth', 0.12, 900); tone(1300, 0.08, 'square', 0.06); } else { tone(900, 0.2, 'sawtooth', 0.12, -700); tone(150, 0.14, 'triangle', 0.1, -60); } break;
       case 'swing': { const f = SWING_SND[weaponOfBlob(e.blob)]; if (f) f(); else tone(900, 0.12, 'sawtooth', 0.04, -700); break; }
       case 'weapon': { const f = HIT_SND[weaponOfBlob(e.blob)]; if (f) f(); else { tone(120, 0.16, 'square', 0.16, -60); tone(520, 0.1, 'sawtooth', 0.08, -380, 0.01); tone(1500, 0.05, 'triangle', 0.06, -600); } break; }
+      case 'stun': tone(220, 0.3, 'square', 0.12, -140); tone(1300, 0.12, 'triangle', 0.07, 400, 0.02); tone(90, 0.18, 'sine', 0.16, -30); break;
       case 'jump': tone(260, 0.07, 'sine', 0.05, 160); break;
       case 'flip': tone(330, 0.16, 'triangle', 0.06, 420); break;
       case 'net': tone(320, 0.06, 'triangle', 0.1, -90); break;
