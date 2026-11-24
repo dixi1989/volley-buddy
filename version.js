@@ -7,7 +7,8 @@ window.BUILD = {
   log: [
     { v: 'vb-v62', items: [
       'Countdown 3-2-1 vor jedem neuen Match (auch online und in der Volley Throne): Während des Countdowns sind Figuren und Ball gesperrt, danach geht es mit „Go!“ los. Vorher konnte man den Ball schon beim Start spielen, und ein noch gedrückter Bestätigen-Knopf am Controller löste sofort einen Sprung aus.',
-      'Controller: Der Ton startet jetzt auch, wenn man nur mit dem Controller spielt (z. B. am Steam Deck).'
+      'Controller: Der Ton startet jetzt auch, wenn man nur mit dem Controller spielt (z. B. am Steam Deck).',
+      'Controller-Rumble: Das Gamepad vibriert bei einem Gegentreffer (Punkt für den Gegner) und kurz, wenn ein Fernkampf-Schuss dich betäubt.'
     ] },
     { v: 'vb-v61', items: [
       'Volley Fight: Fernkampf-Schüsse treffen jetzt auch Gegner. Ein Treffer betäubt kurz (Sterne über dem Kopf) und schleudert den Gegner zurück; danach gibt es eine kurze Schutzzeit. Das Schwarze-Loch-Geschütz teleportiert den Getroffenen stattdessen auf der eigenen Seite.'

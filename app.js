@@ -548,7 +548,25 @@
     bat: () => { tone(900, 0.04, 'square', 0.16, -300); tone(160, 0.14, 'triangle', 0.2, -90); tone(1800, 0.06, 'sawtooth', 0.05, -1200, 0.005); }
   };
   const weaponOfBlob = id => { const b = game && game.blobs[id]; return b && FIGURES[b.style] ? FIGURES[b.style].weapon : null; };
+  /* Controller rumble: a conceded point (long, strong) and a weapon hit that stuns you (short, medium). Pad index = position in the list of
+   * connected pads, the same order pollPads() uses: P1 / solo / online-local = first pad, P2 = second. Browsers without vibrationActuator just skip it. */
+  function padOfBlob(b) {
+    if (!game || !b || b.controller !== 'human') return -1;
+    if (game.mode === 'online') return b.team === game.localTeam ? 0 : -1;
+    return b.keymap === 'P2' ? 1 : 0;
+  }
+  function rumble(pi, ms, weak, strong) {
+    if (pi < 0 || !navigator.getGamepads) return;
+    const g = [...navigator.getGamepads()].filter(p => p && p.connected)[pi];
+    const act = g && g.vibrationActuator;
+    if (!act || !act.playEffect) return;
+    try { const r = act.playEffect('dual-rumble', { startDelay: 0, duration: ms, weakMagnitude: weak, strongMagnitude: strong }); if (r && r.catch) r.catch(() => {}); } catch (err) { /* not supported */ }
+  }
   function playEvent(e) {
+    if (game && !MENU_PHASES.has(phase)) {
+      if (e.type === 'point' && e.scored) game.blobs.forEach(b => { if (b.team !== e.team) rumble(padOfBlob(b), 450, 0.5, 1); });
+      else if (e.type === 'stun') rumble(padOfBlob(game.blobs[e.blob]), 300, 0.7, 0.7);
+    }
     switch (e.type) {
       case 'hit': tone(170 + e.power * 130, 0.1, 'square', 0.1, -70); break;
       case 'shot':
