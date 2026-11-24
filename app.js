@@ -582,6 +582,8 @@
         if (e.scored) { tone(523, 0.14, 'triangle', 0.12); tone(659, 0.2, 'triangle', 0.12, 0, 0.1); }
         else tone(300, 0.25, 'triangle', 0.1, -120);
         break;
+      case 'count': tone(440, 0.14, 'square', 0.1); break;
+      case 'go': tone(880, 0.12, 'square', 0.12); tone(1320, 0.3, 'square', 0.1, 0, 0.1); break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.13, 0, i * 0.13)); break;
     }
   }
@@ -713,7 +715,7 @@
     if (mode === 'duel') { teams = [[H('p1', p1)], [H('p2', p2)]]; tn = [p1, p2]; }
     else if (mode === 'team') { teams = [[H('p1', p1), H('p2', p2)], [A(), A()]]; tn = [p1 + ' & ' + p2, 'CPU']; }
     else { teams = [[H('p1', p1)], [A()]]; tn = [p1, 'CPU']; }
-    game = new Sim({ teams, level: settings.level, target: settings.target, fight: settings.fight, stage: pickStage(settings.stage) });
+    game = new Sim({ teams, level: settings.level, target: settings.target, fight: settings.fight, stage: pickStage(settings.stage), countdown: C.COUNTDOWN });
     game.mode = mode; game.teamNames = tn;
     const humans = game.blobs.filter(b => b.controller === 'human');
     humans.forEach((b, i) => { b.keymap = mode === 'solo' ? 'BOTH' : (i === 0 ? 'P1' : 'P2'); });
@@ -740,7 +742,7 @@
     const free = PALETTE.map(p => p[1]).filter(c => c !== looks.p1.color);
     const teams = [[{ controller: 'human', color: looks.p1.color, style: looks.p1.style, label: throne.name }],
                    [{ controller: 'ai', color: free[(r * 3 + 1) % free.length], style, label: FIGURES[style].name }]];
-    game = new Sim({ teams, level: 't' + (r + 1), target: r === THRONE_ROUNDS - 1 ? 7 : 5, fight: true, stage: throne.stages[r] });
+    game = new Sim({ teams, level: 't' + (r + 1), target: r === THRONE_ROUNDS - 1 ? 7 : 5, fight: true, stage: throne.stages[r], countdown: C.COUNTDOWN });
     game.mode = 'throne'; game.teamNames = [throne.name, FIGURES[style].name];
     game.blobs.filter(b => b.controller === 'human').forEach(b => { b.keymap = 'BOTH'; });
     game.say((r === THRONE_ROUNDS - 1 ? 'Final: ' : 'Round ' + (r + 1) + '/' + THRONE_ROUNDS + ': ') + 'vs ' + FIGURES[style].name + ' · ' + game.stage.name, 150);
@@ -1000,7 +1002,13 @@
     if (settings.muted) { ctx.textAlign = 'right'; ctx.font = '16px ' + FONT; ctx.fillStyle = '#fff'; ctx.fillText('🔇', C.W - 12, C.H - 10); }
     // messages
     ctx.textAlign = 'center';
-    if (g.state === 'serve' && phase !== 'menu') {
+    if (g.countdown > 0 && phase !== 'menu') {
+      if (g.messageTimer > 0 && g.message) { ctx.font = '800 28px ' + FONT; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 5; ctx.strokeText(g.message, 400, 112); ctx.fillText(g.message, 400, 112); }
+      else { ctx.font = '700 22px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 4; const t0 = `Serve: ${names[g.serving]}`; ctx.strokeText(t0, 400, 112); ctx.fillText(t0, 400, 112); }
+      const f = (g.countdown - 1) % C.COUNT_STEP / C.COUNT_STEP, sz = 96 + 40 * f;      // each number shrinks in
+      ctx.font = '800 ' + Math.round(sz) + 'px ' + FONT; ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#1a0a2e'; ctx.lineWidth = 8;
+      const n = String(Math.ceil(g.countdown / C.COUNT_STEP)); ctx.strokeText(n, 400, 245); ctx.fillText(n, 400, 245);
+    } else if (g.state === 'serve' && !(g.messageTimer > 0 && g.message === 'Go!') && phase !== 'menu') {
       ctx.font = '700 22px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 4;
       const txt = `Serve: ${names[g.serving]}`; ctx.strokeText(txt, 400, 112); ctx.fillText(txt, 400, 112);
     } else if (g.messageTimer > 0 && g.message) {
@@ -1119,7 +1127,7 @@
     online.gid++; online.seq = 0; online.myRm = false;
     online.seenJc = online.rin.jc; online.seenSc = online.rin.sc; online.rin.rm = 0;
     online.cfg = { gid: online.gid, names: [hn, gu.name], colors: [mine.c, gu.color], styles: [mine.s, gu.style], target: settings.target, fight: settings.fight ? 1 : 0, stage: pickStage(settings.stage) };
-    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight, stage: online.cfg.stage });
+    game = new Sim({ teams: [[{ controller: 'human', color: mine.c, style: mine.s, label: hn }], [{ controller: 'human', color: gu.color, style: gu.style, label: gu.name }]], level: 'normal', target: settings.target, fight: settings.fight, stage: online.cfg.stage, countdown: C.COUNTDOWN });
     game.mode = 'online'; game.localTeam = 0; game.teamNames = [hn, gu.name];
     setPhase('play');
   }
@@ -1130,7 +1138,7 @@
     if (online.helloTimer) { clearInterval(online.helloTimer); online.helloTimer = null; }
     const spec = i => ({ controller: 'human', color: goodColor(cfg.colors[i]), style: styleOf(cfg.styles && cfg.styles[i]), label: cleanName(cfg.names[i]) });
     const target = [5, 11, 15].includes(cfg.target) ? cfg.target : 11;
-    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight, stage: STAGE_IDS.includes(cfg.stage) ? cfg.stage : 'beach' });
+    game = new Sim({ teams: [[spec(0)], [spec(1)]], level: 'normal', target, fight: !!cfg.fight, stage: STAGE_IDS.includes(cfg.stage) ? cfg.stage : 'beach', countdown: C.COUNTDOWN });
     game.mode = 'online'; game.localTeam = 1; game.teamNames = [cleanName(cfg.names[0]), cleanName(cfg.names[1])];
     setPhase('play');
   }
@@ -1239,6 +1247,8 @@
     const btn = (g, n) => !!(g.buttons[n] && (g.buttons[n].pressed || g.buttons[n].value > 0.5));
     const anyBtn = (g, arr) => arr.some(n => btn(g, n));
     const now = performance.now();
+    // browsers only unlock sound after a user gesture and may not count a gamepad press as one: retry on every press until the audio context runs
+    if ((!ac || ac.state !== 'running') && list.some(g => g.buttons.some(b => b.pressed))) { audio(); startMusic(); }
     const dirs = { left: false, right: false, up: false, down: false }, cur = { ok: false, back: false, start: false, select: false };
     list.forEach((g, i) => {
       const ax = g.axes[0] || 0, ay = g.axes[1] || 0;

@@ -3,8 +3,12 @@
  * (und per Klick auf die Version). Regeln: nur die WICHTIGSTEN Änderungen, keine Test-Hinweise / To-dos, keine Kleinigkeiten;
  * Versionen ohne wichtige Änderung bekommen keinen Eintrag; es werden die letzten 3 Einträge angezeigt (neueste zuerst). */
 window.BUILD = {
-  version: 'vb-v61', time: '24.11.2026 16:30',
+  version: 'vb-v62', time: '24.11.2026 16:10',
   log: [
+    { v: 'vb-v62', items: [
+      'Countdown 3-2-1 vor jedem neuen Match (auch online und in der Volley Throne): Während des Countdowns sind Figuren und Ball gesperrt, danach geht es mit „Go!“ los. Vorher konnte man den Ball schon beim Start spielen, und ein noch gedrückter Bestätigen-Knopf am Controller löste sofort einen Sprung aus.',
+      'Controller: Der Ton startet jetzt auch, wenn man nur mit dem Controller spielt (z. B. am Steam Deck).'
+    ] },
     { v: 'vb-v61', items: [
       'Volley Fight: Fernkampf-Schüsse treffen jetzt auch Gegner. Ein Treffer betäubt kurz (Sterne über dem Kopf) und schleudert den Gegner zurück; danach gibt es eine kurze Schutzzeit. Das Schwarze-Loch-Geschütz teleportiert den Getroffenen stattdessen auf der eigenen Seite.'
     ] },

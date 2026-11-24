@@ -16,7 +16,7 @@
       b: [r2(b.x), r2(b.y), r2(b.vx), r2(b.vy), r2(b.spin)],
       bl: sim.blobs.map(o => [r2(o.x), r2(o.y), r2(o.vx), r2(o.vy), o.alman ? 1 : 0, o.aura ? 1 : 0, o.swing, o.cd, r2(o.aim), o.aimHold, o.flip, o.stun]),
       sc: sim.score, sv: sim.serving, tc: sim.touches, lt: sim.lastTouchTeam, rh: sim.rallyHits, lr: sim.longestRally,
-      st: sim.state, tm: sim.timer, w: sim.winner, ms: sim.message, mt: sim.messageTimer,
+      st: sim.state, tm: sim.timer, cd: sim.countdown | 0, w: sim.winner, ms: sim.message, mt: sim.messageTimer,
       it: sim.items.map(p => [p.id, p.type, r2(p.x), r2(p.y), p.age]),
       sh: sim.shots.map(p => [r2(p.x), r2(p.y), r2(p.vx), r2(p.vy), p.team, p.k]),
       inv: sim.inv, tw: sim.towels, am: sim.alman, au: sim.aura, lv: sim.faulty, tl: r2(sim.tilt),
@@ -36,7 +36,7 @@
     });
     sim.score = s.sc; sim.serving = s.sv; sim.touches = s.tc; sim.lastTouchTeam = s.lt;
     sim.rallyHits = s.rh; sim.longestRally = s.lr;
-    sim.state = s.st; sim.timer = s.tm; sim.winner = s.w; sim.message = s.ms; sim.messageTimer = s.mt;
+    sim.state = s.st; sim.timer = s.tm; sim.countdown = s.cd | 0; sim.winner = s.w; sim.message = s.ms; sim.messageTimer = s.mt;
     sim.items = s.it.map(a => ({ id: a[0], type: a[1], x: a[2], y: a[3], by: a[3], age: a[4] }));
     sim.shots = (s.sh || []).map(a => ({ x: a[0], y: a[1], vx: a[2], vy: a[3], team: a[4], k: a[5] | 0, vol: 0 }));
     sim.inv = s.inv; sim.towels = s.tw; sim.alman = s.am; sim.aura = s.au; sim.faulty = s.lv || [0, 0]; sim.tilt = s.tl || 0;

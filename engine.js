@@ -14,6 +14,7 @@
     FLIP_FRAMES: 24, FLIP_V: 12, BALL_G: 0.192, BALL_MAXV: 10.4, BALL_MAX_UP: 8.4, HIT_MIN: 6, BALL_CAP: 14.4,
     MAX_TOUCHES: 3,
     SERVE_DELAY: 80, POINT_DELAY: 100,
+    COUNTDOWN: 180, COUNT_STEP: 60,   // 3-2-1 before a new match (opt-in via opts.countdown): figures and ball are frozen
     HIT_Y: 280,                       // height at which the AI wants to meet the ball
     // power-ups
     PU_INTERVAL: 1800,                // every 30 s one power-up per player falls from the sky
@@ -317,6 +318,7 @@
       this.rng = mulberry32(opts.seed != null ? opts.seed : (Math.random() * 2 ** 31) | 0);
       this.level = opts.level || 'normal';
       this.target = opts.target || 11;
+      this.countdown = opts.countdown | 0;   // frames left of the 3-2-1 before the match; inputs are ignored and the ball hangs until it reaches 0
       this.fight = !!opts.fight;       // Volley Fight mode: special key swings a weapon, no power-ups
       this.stageId = STAGES[opts.stage] ? opts.stage : 'beach';   // see STAGES
       this.stage = STAGES[this.stageId];
@@ -675,14 +677,19 @@
     step() {
       this.frames++;
       this.events.length = 0;
-      if (this.messageTimer > 0) this.messageTimer--;
+      if (this.messageTimer > 0 && !this.countdown) this.messageTimer--;   // an intro message stays up during the countdown
       const ball = this.ball;
 
       this.pred = this.predict();
       for (const b of this.blobs) {
         if (b.ai) b.ai.update();
-        if (this.state === 'over') { b.input.left = b.input.right = b.input.jump = b.input.special = false; }
+        if (this.state === 'over' || this.countdown > 0) { b.input.left = b.input.right = b.input.jump = b.input.special = false; }
         this.updateBlob(b);
+      }
+      if (this.countdown > 0) {
+        if (this.countdown % C.COUNT_STEP === 0) this.emit('count', { n: this.countdown / C.COUNT_STEP });
+        if (--this.countdown === 0) { this.emit('go', {}); this.say('Go!', 50); }
+        return;                                  // ball hangs, no hits, no power-ups, serve timer waits
       }
       this.updatePowerups();
       if (this.fight) this.stepShots();
